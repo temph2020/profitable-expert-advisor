@@ -1,0 +1,63 @@
+\chapter{亚太与印度细则、跨境三角与误区}
+
+\section{新加坡 MAS}
+
+\begin{itemize}
+  \item 从事 SFA 项下\textbf{基金管理}：申请 \textbf{LFMC}，持有 \textbf{CMS} 牌照。
+  \item 仅管理\textbf{风投基金}：可考虑 \textbf{VCFM} 简化路径。
+  \item \textbf{豁免：} 如仅为关联公司或关联家族管理资产、仅为合格/机构投资者管理不动产或非资本市场产品池等（见 SFA 第99条及《证券期货（牌照与业务操守）规例》附表二第5段等）。
+  \item 官方：\url{https://www.mas.gov.sg/regulation/capital-markets/apply-for-licensing-or-registration-of-capital-market-entities/fund-management-licensing}
+\end{itemize}
+
+页面载明：完整且符合条件的申请审查约 \textbf{6个月}；持牌基金管理公司年费 \textbf{S\$4{,}000} 起（另加代表费用规则）；须\textbf{专用安全办公场所}。
+
+\section{香港证监会}
+
+证券/期货组合资产管理通常需 \textbf{第9类（提供资产管理）}牌照；常见要求包括\textbf{两名负责人员（RO）}、香港公司或注册非香港公司、实体办公等。详见 \url{https://www.sfc.hk}。
+
+\section{澳大利亚 ASIC}
+
+面向客户提供金融产品建议或发行管理投资计划权益，通常需 \textbf{AFSL} 相应授权。\textbf{批发}基金面向批发投资者时，披露义务与零售不同，但仍须结构合规（如 \textbf{Responsible Entity} 角色）。具体授权范围由律师与 ASIC 指南对齐。
+
+\section{日本}
+
+\textbf{金融商品交易法}下第二类金融商品交易业登记等；公募投信、投资助言、私募领域线条各异，须日文合规资料与本地律师。
+
+\section{印度 SEBI AIF（补充）}
+
+\textbf{Category I / II / III} 在杠杆、投资范围、披露上不同；2024 年前后市场关注：股权负担框架、关键投资团队\textbf{认证}过渡期等。申请费、表格与 First Schedule 要求以 SEBI 现行规则与 \textbf{SIPortal} 流程为准。
+
+\section{跨境：三地司法辖区三角}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[scale=1.02, every node/.style={transform shape}]
+  \coordinate (top) at (90:2.5);
+  \coordinate (lr) at (-30:2.5);
+  \coordinate (ll) at (210:2.5);
+
+  \fill[teal!8] (top) -- (lr) -- (ll) -- cycle;
+  \draw[thick, teal!60!black] (top) -- (lr) -- (ll) -- cycle;
+
+  \node[compliance=teal, minimum width=3.4cm] at (top) {管理人\\注册地法律};
+  \node[compliance=blue, minimum width=3.4cm] at (lr) {基金载体\\注册地};
+  \node[compliance=orange, minimum width=3.4cm] at (ll) {投资者\\国籍/所在地};
+
+  \node[font=\scriptsize, text width=7.8cm, align=center] at (0,-0.15)
+    {仅在一地拿牌 \textbf{不自动}覆盖向他国居民募资或远程下单；\\欧盟护照、NPPR、私募配售等均为\textbf{程序工具}，非「全球免牌」。};
+\end{tikzpicture}
+\caption{跨境资管常须分别评估的三类连接点}
+\label{fig:cross-border-triangle}
+\end{figure}
+
+\section{常见误区}
+
+\begin{enumerate}
+  \item \textbf{技术中立：} 代码与回测本身通常不单独触发牌照；一旦绑定\textbf{客户资金、下单权或基金份额募集}，即进入各辖区证券/基金法。
+  \item \textbf{合同规避：} 名为「借贷」「合作」「分成」但实质为面向不特定对象的保本或全权委托，仍可能被重新定性。
+  \item \textbf{集团架构：} 母公司--子公司可服务治理与税务讨论，\textbf{不能替代}管理人资格与产品注册/备案。
+\end{enumerate}
+
+\section{维护与更新}
+
+规则持续变化（如 \textbf{AIFMD II}、\textbf{SEBI AIF} 年度通函、\textbf{SEC} 对顾问门槛的审议等）。本书内容反映整理时的公开材料；正式展业前须以\textbf{监管机构官网与律师备忘录}为准并标注检索日期。

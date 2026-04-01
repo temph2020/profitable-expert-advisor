@@ -1,0 +1,58 @@
+\chapter{加密金融市场：价格形成、机构参与与 RWA}
+
+\section{现货、衍生品与价格发现}
+
+加密市场\textbf{7×24}交易，现货价格由中心化交易所（CEX）订单簿与链上 DEX 共同发现；二者常存在\textbf{基差}与延迟套利空间。\textbf{永续合约}通过资金费率（funding）平衡多空，使价格锚定指数；极端行情下可能出现插针、清算瀑布与交易所风控停机。\textbf{期权与结构化产品}在机构参与度上升后逐步深化，但流动性仍集中于少数标的。量化策略须将\textbf{提币限制、API 限速、合约乘数、标记价格与指数成分}纳入与传统市场不同的回测假设。
+
+\section{ETF、托管与主经纪}
+
+部分司法辖区已批准与现货或期货挂钩的\textbf{上市基金产品}，使传统经纪账户可获得敞口，但底层持有结构、申赎机制与税务处理与直接持币不同。\textbf{机构托管}分冷/温/热存储与保险安排；托管证明与链上储备证明（PoR）成为透明度竞争点。\textbf{主经纪/场外借贷}市场连接对冲基金与做市商，信用与抵押品估值（haircut）在波动期快速重定价——与 2008 年回购市场类似的\textbf{流动性螺旋}在加密周期中已多次出现。
+
+\section{与宏观风险资产的相关性}
+
+比特币等曾被叙事为「宏观独立」；实证上在部分阶段与\textbf{纳斯达克、流动性预期、美元实际利率}呈现阶段性正相关，在危机时刻亦可能同步下跌。稳定币市值与链上活动可作为\textbf{风险偏好与杠杆载体}的代理变量之一，但因果解读需谨慎。资产配置模型若引入加密，应明确\textbf{再平衡频率、最大回撤约束与杠杆上限}。
+
+\section{链上数据与科学}
+
+公开账本带来\textbf{链上分析}（地址聚类、交易所流入流出、矿工行为、质押队列、MEV 占比）新维度；与传统订单流结合可构建因子。挑战包括：地址标签噪声、混币与跨链剥离、以及重组与预言机异常。研究型团队常自建节点与延迟优化基础设施，成本与运维纳入管理费模型。
+
+\section{稳定币在支付与链上金融中的角色}
+
+稳定币在跨境汇款、新兴市场美元化工具、以及 DeFi 抵押与交易对中占据核心位置；其\textbf{利率传导}与\textbf{链下货币市场}（美债、回购）通过储备资产相连。监管对储备与赎回的要求将改变发行方盈利模式与 DeFi 可组合性——策略团队须跟踪主要稳定币的\textbf{储备披露与黑名单冻结能力}（合规需求与去中心化叙事的张力）。
+
+\section{代币化现实世界资产（RWA）}
+
+债券、货币基金、房地产与私人信贷等\textbf{上链}可缩短结算周期、扩大分销半径，但法律上须明确：代币持有人权利是\textbf{直接所有权}还是\textbf{信托/ SPV 份额}，破产隔离如何实现，以及信息披露适用证券法抑或另类框架。机构试点常与\textbf{许可链 + 持牌托管 + 白名单投资者}组合，与公链无许可 DeFi 的融合度因法域而异。
+
+\section{风险管理清单（机构视角）}
+
+\begin{itemize}
+  \item \textbf{对手方：}交易所、托管方、稳定币发行人、借贷对手、桥与预言机——集中度与信用限额。
+  \item \textbf{操作：}私钥流程、链上多签、内部作恶、钓鱼与供应链攻击。
+  \item \textbf{市场：}波动、流动性枯竭、负费率极端、稳定币脱锚。
+  \item \textbf{合规：}制裁名单、旅行规则、税务申报、跨境营销限制。
+  \item \textbf{模型：}回测过拟合、链上结构突变（协议升级、硬分叉、参数治理投票）。
+\end{itemize}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[font=\footnotesize]
+  \node[reg node=blue] (spot) {现货 CEX/DEX};
+  \node[reg node=teal, right=1.2cm of spot] (der) {衍生品\\永续/期权};
+  \node[reg node=violet, right=1.2cm of der] (cust) {托管/ETF\\PoR/保险};
+  \path (spot) -- node[coordinate, midway] (midspotder) {} (der);
+  \node[reg node=orange, below=1.1cm of midspotder] (defi) {链上 DeFi\\借贷/AMM};
+  \node[reg node=purple, below=1.1cm of cust] (rwa) {RWA/代币化};
+  \draw[compliance arrow] (spot) -- (der);
+  \draw[compliance arrow] (der) -- (cust);
+  \draw[compliance arrow] (spot.south) -- ++(0,-0.35) -| (defi.north);
+  \draw[compliance arrow] (cust.south) -- ++(0,-0.35) -| (rwa.north);
+  \draw[dashed, gray!50] (defi.east) -- (rwa.west);
+\end{tikzpicture}
+\caption{加密金融市场主要模块与资金流联系（示意）}
+\label{fig:crypto-mkt-map}
+\end{figure}
+
+\section{小结}
+
+Web3 同时是\textbf{技术运动、监管对象与资本市场板块}：技术层决定攻击面与可组合性，政策层决定准入与营销边界，市场层决定流动性与风险溢价。本书合规篇的传统私募规则在「代币化募资、链上管理账户、跨境稳定币」等场景下均需\textbf{增量分析}；建议在基金 PPM 与 DDQ 中单独设置\textbf{数字资产附录}，并在冷启动触达材料中避免与技术白皮书相矛盾的收益承诺。

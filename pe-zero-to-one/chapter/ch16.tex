@@ -1,0 +1,112 @@
+\chapter{冷启动：从策略掌握者到最小可行团队}
+
+本章讨论：在已具备可验证交易策略或组合的前提下，如何跨越「只有一个人、没有品牌、没有合规壳」的冷启动期，通过\textbf{Networking}与\textbf{有节制的触达}组建团队、积累信任，并与本书\textbf{合规篇}（第十七章起）所述合规路径衔接。\textbf{未获必要许可前，任何对外募资或投资顾问表述须严格遵守当地法律}；下文中的「触达」包含人才、合作方与\textbf{未来}资本关系，不代表可绕过监管。
+
+\section{冷启动的三类约束}
+
+\begin{itemize}
+  \item \textbf{可信度：}同类策略供给过剩， allocator 与联合创始人默认怀疑；需要\textbf{可复核}的过程记录（回测假设、实盘滑点、版本管理），而非仅口头「稳定盈利」。
+  \item \textbf{合规壳：}在多数司法辖区，面向外部资金开展管理或募集前须具备相应资格（参见\textbf{合规篇}）。冷启动阶段常见做法是：\textbf{自有/极窄关系资金}验证、或\textbf{入职持牌机构}输出策略、或与已持牌方\textbf{投顾/白标}合作——具体路径须律师确认。
+  \item \textbf{资本与时间：}团队现金跑道与机会成本；过早扩张固定人力往往比「外包+里程碑」更危险。
+\end{itemize}
+
+\section{阶段模型：从单人到最小团队}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[node distance=0.75cm, font=\small]
+  \node[compliance=purple] (s0) {0. 策略持有人\\回测/仿真/小资金实盘};
+  \node[compliance=violet, below=of s0] (s1) {1. 可展示记录\\文档化、可重复运行、风险指标};
+  \node[compliance=blue, below=of s1] (s2) {2. 第一个同类\\联创 / 资深兼职 / 顾问};
+  \node[compliance=teal, below=of s2] (s3) {3. 最小 pods\\研究+工程 或 工程+运维};
+  \node[compliance=green!50!black, below=of s3] (s4) {4. 公司化与分工\\合规、运营、市场/IR};
+
+  \foreach \a/\b in {s0/s1,s1/s2,s2/s3,s3/s4}
+    \draw[compliance arrow] (\a) -- (\b);
+
+  \begin{scope}[on background layer]
+    \node[rounded corners=12pt, inner sep=11pt, fill=gray!6, draw=gray!45, dashed, fit=(s0)(s4)] {};
+  \end{scope}
+\end{tikzpicture}
+\caption{从「掌握策略」到「可运转组织」的常见阶段（非严格线性，可回退迭代）}
+\label{fig:coldstart-stages}
+\end{figure}
+
+\textbf{阶段 0--1：}重点不是扩张人头，而是把策略变成\textbf{他人可接手}的流水线：代码仓库规范、参数与数据版本、失败案例与最大回撤说明。此阶段 Networking 的目标多是\textbf{同行切磋与找漏洞}，而非直接募资。
+
+\textbf{阶段 2：}第一个关键合作者应补齐你最弱的一环：若你强研究弱工程，优先找能\textbf{工程化与上线}的人；若你强开发弱市场，可先找\textbf{行业顾问}（兼职）帮对接资源，再考虑全职。
+
+\textbf{阶段 3--4：}出现固定交易时段运维、对手方对接、估值与报表需求时，再拆出\textbf{运营/风控合规}；市场与投资者关系（IR）通常在\textbf{真有产品或持牌主体}后加重，避免过早「销售驱动」导致合规风险。
+
+\section{团队角色清单（精简版）}
+
+\begin{description}
+  \item[投资/研究负责人] 策略逻辑、组合与风险预算；对外投资叙事与 allocator 对话（须在合规框架内）。
+  \item[量化工程] 回测框架、执行系统、低延迟与稳定性；与经纪商/交易所 API 对接。
+  \item[交易运维] 盘中监控、故障切换、日志与事故复盘；常与工程合并由小团队兼任。
+  \item[合规与法务] 持牌后常需专职或外包律所；冷启动期至少要有\textbf{固定外部律师}审阅对外材料。
+  \item[运营与财务] 基金会计、估值、投资者报告模板；公司日常账务。
+  \item[市场/IR] 募资材料、路演排期、数据室维护；与「公开宣传」边界强相关，需合规双人复核。
+\end{description}
+
+早期不必一人一岗：常见「2+1」是 \textbf{PM+工程} 加 \textbf{外包财务/律师}；或 \textbf{PM+运营} 加 \textbf{外包开发}。原则是\textbf{不可外包的核心}（投资决策权、风控哲学）留在内部。
+
+\section{Networking：去哪里、见谁、谈什么}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[font=\footnotesize]
+  \node[ellipse, draw=teal!70, fill=teal!6, minimum width=3.6cm, minimum height=1.5cm, align=center] (hub) {你\\（策略与记录）};
+  \node[reg node=blue, above left=1.2cm and 1.8cm of hub] (alumni) {校友与\\前同事};
+  \node[reg node=orange, above right=1.2cm and 1.8cm of hub] (broker) {经纪商/\\期货商活动};
+  \node[reg node=violet, left=2.5cm of hub] (conf) {行业会议\\与闭门沙龙};
+  \node[reg node=purple, right=2.5cm of hub] (online) {线上社群\\（筛选质量）};
+  \node[reg node=green!60!black, below left=1.2cm and 1.5cm of hub] (vendor) {数据商/\\云厂商生态};
+  \node[reg node=red!65!black, below right=1.2cm and 1.5cm of hub] (intro) {介绍链\\（warm intro）};
+
+  \foreach \x in {alumni,broker,conf,online,vendor,intro}
+    \draw[compliance arrow, shorten <=2pt, shorten >=2pt] (hub) -- (\x);
+\end{tikzpicture}
+\caption{Networking 渠道示意（优先 warm intro 与高质量闭门场景）}
+\label{fig:networking-hub}
+\end{figure}
+
+\begin{itemize}
+  \item \textbf{Warm intro 优先：}同样一封邮件，经共同信任人转发，回复率远高于陌生冷信。可维护简易表格：姓名、机构、关注点、上次联系日期、可提供的价值（非收益承诺）。
+  \item \textbf{经纪商/期货商/主经纪会议：}偏执行与基础设施，适合找\textbf{运维与对手方}人脉，不宜在无证时当作募资场合。
+  \item \textbf{会议与沙龙：}目标应是\textbf{学习监管口径、认识服务方、找潜在联合创始人}，而非群发「代客理财」类话术。
+  \item \textbf{线上社群：}质量参差；可贡献可验证的技术内容建立声誉，避免在公开频道讨论\textbf{具体客户资金与收益保证}。
+  \item \textbf{校友网络：}律所、审计、投行背景校友常能在\textbf{公司设立与合规路径}上提供高质量引荐。
+\end{itemize}
+
+\section{Cold call 与 Cold email：原则与节奏}
+
+\textbf{对象区分：}
+\begin{description}
+  \item[人才/技术合作] 邮件宜短：你是谁、策略领域（统计套利/CTA/做市等）、当前阶段、对方为何相关、明确\textbf{一次性}请求（15 分钟通话/咖啡）。附件可给\textbf{一页 Teaser（不含违规承诺）}。
+  \item[Allocator/家办/FOF] 须事先研究其\textbf{策略容量、历史偏好、最低投资线}。首封邮件忌长 PDF；可附\textbf{合规审查过的}一页摘要与数据室链接（若有）。跟进间隔以周计，避免日催。
+  \item[服务采购（数据、托管、系统）] 明确技术栈与接口需求，便于对方判断是否匹配。
+\end{description}
+
+\textbf{共同禁忌：}保本保收益、公开招揽不特定对象、借用他人牌照名义、夸大未经审计的业绩。此类表述在多国可能同时触发\textbf{证券法与刑事风险}。
+
+\textbf{可执行习惯：}每周固定数量\textbf{高质量触达}（如 5--10 封定制邮件）优于百封群发；每次对话后写三行纪要（对方痛点、下一步、承诺事项）。
+
+\section{从交易执行者到「团队负责人」}
+
+角色转变要点：
+\begin{enumerate}
+  \item \textbf{决策透明：}研究日志、策略变更审批、仓位与风险限额书面化，减少「只有创始人脑子里有」的单点风险。
+  \item \textbf{招聘顺序：}先\textbf{标准与文档}，再扩人；否则新人只能当「第二个你」，无法放大杠杆。
+  \item \textbf{激励：}早期现金有限时，可用里程碑奖金、虚拟股或期权，但须\textbf{律师起草}并与未来持牌主体股权结构一致。
+  \item \textbf{冲突处理：}联合创始人间事先约定\textbf{股权兑现、退出、竞业}，避免策略分歧时无法拆伙。
+\end{enumerate}
+
+\section{与本书其他章节的衔接}
+
+\begin{itemize}
+  \item 募资与条款设计见前文各章；\textbf{冷启动期}更强调「可验证记录 + 合规路径 + 小步团队」，而非一步到位的大基金结构。
+  \item 集团架构与跨境展业见第十四章（图 \ref{fig:holding-structure}）及\textbf{合规篇}；Networking 获得的外资意向须在\textbf{具体辖区规则}下重新评估。
+\end{itemize}
+
+本章不提供「话术模板」式的募资脚本；若需要，应在持牌律师与合规审查后定制。冷启动的本质是：用\textbf{可审计的进步}替代\textbf{不可验证的叙事}，用\textbf{精准触达}替代\textbf{噪音式群发}，用\textbf{最小团队}撑到\textbf{合规壳与首关资金}同时就绪的那一刻。

@@ -1,0 +1,41 @@
+% TikZ 样式与颜色 — 合规章节共用
+\tikzset{
+  compliance/.style args={#1}{
+    rounded corners=10pt,
+    draw=#1!70!black,
+    thick,
+    fill=#1!12,
+    align=center,
+    inner sep=10pt,
+    font=\small,
+    drop shadow={shadow xshift=1.2pt, shadow yshift=-1.2pt, fill=black!20},
+  },
+  compliance arrow/.style={
+    -{Stealth[length=3mm]},
+    thick,
+    draw=gray!70,
+  },
+  reg node/.style args={#1}{
+    rectangle,
+    rounded corners=6pt,
+    minimum width=2.8cm,
+    minimum height=1cm,
+    align=center,
+    draw=#1!65!black,
+    fill=#1!8,
+    font=\footnotesize,
+  },
+  fancy ring/.style args={#1}{
+    circle,
+    draw=#1,
+    line width=1.6pt,
+    inner sep=6pt,
+    align=center,
+    font=\scriptsize\bfseries,
+  },
+}
+
+\newcommand{\ComplianceColorCHN}{red}
+\newcommand{\ComplianceColorIND}{orange}
+\newcommand{\ComplianceColorEMEA}{blue}
+\newcommand{\ComplianceColorAMER}{teal}

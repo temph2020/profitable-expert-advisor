@@ -71,16 +71,45 @@ python predict_with_onnx.py --model models/XAUUSD_H1_model.onnx --symbol XAUUSD 
 
 ### Step 3: Use in Expert Advisor
 
+#### For Strategy Tester:
+1. Copy the ONNX model to Tester Files folder:
+   ```
+   <MT5 Data Folder>\Tester\Files\XAUUSD_H1_model.onnx
+   ```
+   Or use the full path shown in error messages if file not found.
+
+2. Compile `ONNX_EA.mq5` in MetaEditor (F7)
+
+3. Open Strategy Tester (View → Strategy Tester or Ctrl+R)
+
+4. Configure:
+   - Expert Advisor: `ONNX_EA`
+   - Symbol: `XAUUSD` (or your symbol)
+   - Period: `H1` (or your timeframe)
+   - Inputs:
+     - `InpModelPath`: `XAUUSD_H1_model.onnx` (just filename)
+     - Adjust other parameters as needed
+
+5. Click Start
+
+#### For Live/Demo Trading:
 1. Copy the ONNX model to MT5's Files folder:
    ```
-   <MT5 Data Folder>\MQL5\Files\models\XAUUSD_H1_model.onnx
+   <MT5 Data Folder>\MQL5\Files\XAUUSD_H1_model.onnx
    ```
+   To find your Data Folder: Tools → Options → Expert Advisors → Data Folder
 
-2. Compile `ONNX_EA.mq5` in MetaEditor
+2. Compile `ONNX_EA.mq5` in MetaEditor (F7)
 
-3. Attach the EA to a chart with:
-   - Model path: `models\XAUUSD_H1_model.onnx`
-   - Your trading parameters
+3. Open a chart (e.g., XAUUSD H1)
+
+4. Drag `ONNX_EA` from Navigator (Ctrl+N) onto the chart
+
+5. Configure inputs:
+   - `InpModelPath`: `XAUUSD_H1_model.onnx` (just filename)
+   - Adjust trading parameters
+
+6. Click OK and enable AutoTrading if needed
 
 ## Detailed Usage
 

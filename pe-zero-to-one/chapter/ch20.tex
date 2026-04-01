@@ -1,0 +1,47 @@
+\chapter{EMEA 深度：AIFMD 栈、英国路径与中东枢纽}
+
+\section{欧盟 AIFM 典型结构}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[node distance=0.85cm]
+  \node[reg node=blue] (nca) {NCA\\成员国主管机关};
+  \node[reg node=purple, below=of nca] (aifm) {AIFM\\另类投资管理人};
+  \node[reg node=teal, below left=of aifm, xshift=-0.2cm] (aif) {AIF\\基金载体};
+  \node[reg node=orange, below right=of aifm, xshift=0.2cm] (dep) {托管等\\（依规则）};
+  \node[reg node=gray, below=2.1cm of aifm, minimum width=6.2cm] (inv) {合格/专业投资者（依基金类型与营销规则）};
+
+  \draw[compliance arrow] (nca) -- (aifm) node[midway, right, font=\scriptsize] {授权};
+  \draw[compliance arrow] (aifm) -- (aif);
+  \draw[compliance arrow] (aifm) -- (dep);
+  \draw[compliance arrow] (aif) -- (inv);
+  \draw[compliance arrow] (dep) -- (inv);
+
+  \begin{scope}[on background layer]
+    \node[fill=blue!3, rounded corners=16pt, inner sep=16pt,
+          fit=(nca)(aifm)(aif)(dep)(inv), draw=blue!25] {};
+  \end{scope}
+\end{tikzpicture}
+\caption{欧盟语境下 AIFM--AIF--投资者关系（高度简化；不含 NPPR、护照等营销细节）}
+\label{fig:aifmd-stack}
+\end{figure}
+
+\section{AIFMD II 动向（摘要）}
+
+授权申请须提供更充分的人员、委托链、技术资源与尽调安排描述；部分规则对\textbf{流动性管理工具、杠杆披露、监管报告}等提出强化要求。实施日期以各成员国完成转置后的适用日为准。
+
+\section{英国：注册与授权 AIFM}
+
+\textbf{Small registered UK AIFM} 适用于特定窄类情形（如部分封闭式投资信托、小型房地产 AIFM、社会企业/风险资本标签基金等），监管负担轻于 full-scope，但仍须遵守 AIFMD 第3条等核心义务（报告等）。具体资格见 FCA「Apply to be a registered / authorised AIFM」页面。
+
+\section{瑞士、卢森堡、爱尔兰}
+
+瑞士 \textbf{CISA}、卢森堡/爱尔兰的 \textbf{AIF/UCITS} 载体常与欧盟营销路径（反向邀约、NPPR、护照）结合设计，须基金律师与税务顾问联合建模。
+
+\section{中东：DIFC 与 DFSA}
+
+迪拜国际金融中心（DIFC）由 \textbf{DFSA} 监管。市场常见表述包括：面向合格投资者的 \textbf{Qualified Investor Fund (QIF)}、\textbf{Exempt Fund} 等类型，以及 \textbf{Category 3C Fund Manager} 等牌照维度；最低认购额、资本与快速通道审批等以 \textbf{DFSA Rulebook} 与当时政策为准。\textbf{ADGM（阿布扎比）}、\textbf{沙特 CMA} 等为平行但独立的监管环境。
+
+\section{非洲}
+
+南非等国存在集合投资计划与金融服务提供商许可体系；其余国家规则分散。EMEA 报告中的「非洲」应做\textbf{国别表}，不宜套用欧盟或英国条款。

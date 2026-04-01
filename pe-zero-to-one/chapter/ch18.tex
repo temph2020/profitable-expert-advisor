@@ -1,0 +1,43 @@
+\chapter{中国大陆：私募登记、代客理财边界与系统流程}
+
+\section{监管依据与流程入口}
+
+《私募投资基金监督管理暂行办法》第七条、第八条要求各类私募基金管理人根据\textbf{基金业协会}规定申请\textbf{登记}，私募基金募集完毕后办理\textbf{备案}。证监会办事说明：\url{http://www.csrc.gov.cn/csrc/c101939/c1045416/content.shtml}。资产管理综合报送平台（\textbf{AMBERS}）：\url{https://ambers.amac.org.cn}。
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+  font=\small,
+  box/.style={compliance=#1, minimum width=3.6cm, minimum height=1.05cm},
+]
+  \node[box=orange] (law) {行政法规与证监会规章\\《暂行办法》等};
+  \node[box=blue, right=1.8cm of law] (amac) {基金业协会\\管理人登记 + 基金备案};
+  \node[box=teal, right=1.8cm of amac] (amber) {AMBERS 报送平台\\材料提交与公示};
+
+  \draw[compliance arrow] (law) -- node[above, font=\scriptsize] {授权/自律} (amac);
+  \draw[compliance arrow] (amac) -- node[above, font=\scriptsize] {电子化} (amber);
+
+  \node[below=0.55cm of amac, text width=8.5cm, align=center, font=\scriptsize, text=gray!70!black] {第九条：登记备案不构成对投资能力的认可，不构成对基金财产安全的保证。};
+\end{tikzpicture}
+\caption{中国私募：法律依据、协会职能与报送系统关系（示意）}
+\label{fig:chn-amac-flow}
+\end{figure}
+
+\section{与「代客理财」的区分}
+
+正规证券公司资产管理业务以\textbf{公司}为主体签署资管合同；从业人员个人与客户私下签约或全权操作账户，属违规代客理财。投资者教育案例：\url{http://www.csrc.gov.cn/csrc/c100211/c1452037/content.shtml}。
+
+\section{登记备案办法下的常见硬性方向}
+
+以下摘自公开解读与协会配套规则中常被引用的方向，\textbf{具体数字与表格以协会最新《登记申请材料清单》及有效规则文本为准}：
+
+\begin{itemize}
+  \item 私募基金管理人实缴货币资本不低于 \textbf{1000万元人民币}（或等值可自由兑换货币）等要求；
+  \item 证券类私募：负责投资的高管常需 \textbf{最近5年内连续2年以上} 相关投资管理经验，单只产品管理规模不低于 \textbf{2000万元} 等证明材料；
+  \item \textbf{合规风控负责人} 应具备合规、风控、法律、会计等相关工作经验；
+  \item 近年内被采取行政监管措施、协会纪律处分、重大负面机构任职等，可能构成障碍。
+\end{itemize}
+
+\section{证券投资咨询与私募管理人的关系}
+
+两者为不同监管线条：投资咨询机构从事证监会许可的咨询业务；私募基金管理人在中基协登记后管理私募基金。向银行理财子、信托、券商资管等提供\textbf{投资顾问}服务，需满足另行规定的条件（如备案年限、人员「3+3」等，以当时有效规则为准）。两类业务人员兼任限制须严格遵守监管规定。

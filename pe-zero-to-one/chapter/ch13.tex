@@ -1,0 +1,46 @@
+\chapter{合规、内控与声誉风险}
+
+\section{合规在私募中的含义}
+
+「合规」不仅是应对监管检查，更是\textbf{保护 LP 资产、降低民事与刑事责任概率、维护品牌}的基础设施。对管理人而言，核心模块通常包括：反洗钱与客户尽职调查、利益冲突管理、内幕信息与市场滥用防范、宣传与销售适当性、记录保存与监管报送。各法域细节见本书合规篇；本章提供\textbf{内控搭建}的通用框架。
+
+\section{反洗钱（AML）与客户尽职调查（KYC）}
+
+Know Your Customer 要求识别最终受益所有人（UBO）、资金来源与制裁名单筛查。对机构 LP 与个人 LP 的尽调深度不同；高风险司法辖区或政治公众人物（PEP）需强化措施。交易环节须警惕\textbf{结构化分拆}规避门槛的行为。AML 政策应书面化并定期培训，异常交易有内部升级路径。
+
+\section{利益冲突（COI）}
+
+典型冲突包括：基金 A 与基金 B 竞争同一标的、GP 关联方提供服务收费、个人跟投与基金跟投机会分配不均、顾问同时服务卖方与买方。管理措施包括：\textbf{事前披露}、投资委员会回避、独立委员表决、side letter 台账与公平分配政策。未妥善处理的冲突是监管处罚与 LP 诉讼的高频来源。
+
+\section{内幕信息与防火墙}
+
+投研人员可能接触未公开重大信息（尤其临近上市或并购标的）。需建立\textbf{信息分级}、限制名单（restricted list）、墙（Chinese wall）与「清洁团队」程序。个人交易与礼品申报政策应明确。量化团队若与上市公司或卖方顾问共享物理或逻辑环境，更需日志与权限隔离。
+
+\section{记录保存与对外披露}
+
+电子通信、模型版本、投委会材料、定价依据与 LP 沟通记录应在保留期限内\textbf{可检索备份}。对外路演、网站与社交媒体发布应有双人复核与版本存档。监管检查与民事诉讼中，「找不到记录」往往被推定不利。
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[font=\footnotesize]
+  \node[compliance=gray!80!black, minimum width=2.4cm] (core) {内控核心};
+  \node[compliance=red!70!black, above left=0.9cm and 1.1cm of core] (aml) {AML/KYC\\客户尽调};
+  \node[compliance=orange!80!black, above right=0.9cm and 1.1cm of core] (coi) {利益冲突\\Chinese wall};
+  \node[compliance=blue!70!black, below left=0.9cm and 1.1cm of core] (mn) {材料留痕\\宣传口径};
+  \node[compliance=teal!70!black, below right=0.9cm and 1.1cm of core] (rep) {监管报送\\重大事项};
+
+  \foreach \x in {aml,coi,mn,rep}
+    \draw[compliance arrow] (core) -- (\x);
+
+  \begin{scope}[on background layer]
+    \node[draw=violet!40, rounded corners=14pt, inner sep=12pt, fill=violet!3,
+          fit=(core)(aml)(coi)(mn)(rep)] {};
+  \end{scope}
+\end{tikzpicture}
+\caption{私募管理人内控与合规常见支柱（示意）}
+\label{fig:compliance-pillars}
+\end{figure}
+
+\section{声誉与「架构」的边界}
+
+多层控股或离岸主体不能消除对\textbf{真实业务、适当性、非公开募集}等实质要求；监管与司法机关在特定情形下可否认法律人格独立性（刺破面纱）。合规篇各章所述境外牌照亦仅覆盖\textbf{获准司法辖区内的活动}，与本书前文所述中国大陆登记备案相互独立，须分别论证。\textbf{声誉风险}往往在监管正式行动之前即通过 allocator 尽调、媒体报道与人才招聘受挫体现——内控投入是长期品牌的一部分。

@@ -1,0 +1,54 @@
+\chapter{全球区域合规总览：CHN、IND、EMEA、AMER 与亚太}
+
+对外管理客户资金或设立基金时，须先厘清：\textbf{谁在决策}（全权委托 / 建议 / 纯软件）、\textbf{是否集合投资}、\textbf{客户是否零售}、\textbf{募集与销售是否跨境}、\textbf{是否涉及衍生品或高杠杆}。下列为各区域\textbf{框架性}摘要，实施须结合当地律师意见。
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[scale=0.98, every node/.style={transform shape}]
+  % 装饰性背景
+  \begin{scope}[on background layer]
+    \fill[blue!4] (-5.6,-3.2) rectangle (5.6,3.4);
+    \draw[decorate, decoration={snake, amplitude=0.6pt, segment length=8pt}, gray!30]
+      (-5.3,0) -- (5.3,0);
+  \end{scope}
+
+  \node[fancy ring=red!75!black, fill=red!10, minimum size=2.9cm] (CHN) at (-3,1.6) {CHN\\\footnotesize 中基协登记};
+  \node[fancy ring=orange!80!black, fill=orange!8, minimum size=2.9cm] (IND) at (3,1.6) {IND\\\footnotesize SEBI AIF};
+  \node[fancy ring=blue!70!black, fill=blue!6, minimum size=2.9cm] (EMEA) at (-3,-1.5) {EMEA\\\footnotesize AIFMD / FCA};
+  \node[fancy ring=teal!70!black, fill=teal!6, minimum size=2.9cm] (AMER) at (3,-1.5) {AMER\\\footnotesize SEC RIA / IFM};
+
+  \draw[compliance arrow, shorten >=2pt, shorten <=2pt] (CHN) -- (EMEA);
+  \draw[compliance arrow, shorten >=2pt, shorten <=2pt] (IND) -- (AMER);
+  \draw[dashed, gray!50, thick] (CHN) -- (IND);
+  \draw[dashed, gray!50, thick] (EMEA) -- (AMER);
+
+  \node[font=\scriptsize, text=gray!60!black, align=center] at (0,3.05)
+    {跨境募集时，四象限规则可能\textbf{同时}适用 $\Rightarrow$ 须逐司法辖区确认};
+\end{tikzpicture}
+\caption{主要区域监管锚点示意（非地理比例；中东、非洲、拉美须单列国别）}
+\label{fig:global-quad}
+\end{figure}
+
+\section{欧盟（EU）：AIFMD 与 AIFMD II}
+
+管理欧盟内另类投资基金（AIF）或向欧盟投资者营销，通常需取得成员国主管机关（NCA）授权的 \textbf{AIFM}，并遵守资本、托管、杠杆、流动性、报告及委托管理等要求。\textbf{AIFMD II} 已于2024年生效，成员国转置与全面适用存在过渡期（公开材料常见表述约至2026年中，以各国立法为准）。授权材料趋向更细：人员、委托/再委托、技术资源、尽调程序等。欧盟委员会立法索引：\url{https://finance.ec.europa.eu/regulation-and-supervision/financial-services-legislation/implementing-and-delegated-acts/alternative-investment-fund-managers-directive_en}。
+
+\section{英国（UK）}
+
+脱欧后适用 \textbf{UK AIFM} 制度：\textbf{full-scope authorised}、\textbf{small authorised}、\textbf{small registered UK AIFM} 等路径门槛与义务不同。FCA 入口：\url{https://www.fca.org.uk/firms/aifmd-uk}。另：\textbf{MiFID} 投资业务、FCA 其他授权与「仅做 AIFM」为不同维度。
+
+\section{印度（IND）：SEBI AIF}
+
+另类投资基金依 \textbf{SEBI (AIF) Regulations, 2012} 及后续 \textbf{Master Circular}、年度 \textbf{Circular} 更新；申请通过 \textbf{SIPortal} 等提交。2024 年起市场关注要点包括：Category I/II AIF 对参股公司股权设立负担的框架、关键投资团队\textbf{认证要求}等——以 \url{https://www.sebi.gov.in} 现行文件为准。证券类量化策略须与 \textbf{FPI/PMS} 等路径是否竞合一并论证。
+
+\section{美国与加拿大（AMER 核心）}
+
+\textbf{美国：} 管理外部客户资产常需 \textbf{RIA} 注册与 \textbf{Form ADV}（\textbf{IARD}）；联邦与州管辖取决于 AUM（\textbf{Rule 203A-1} 等）。\textbf{加拿大：} \textbf{NI 31-103} 协调各省注册，基金管理常涉及 \textbf{Investment Fund Manager (IFM)} 等类别，除非适用豁免。
+
+\section{新加坡、香港、澳大利亚、日本（亚太摘录）}
+
+\textbf{新加坡：} \textbf{CMS} 牌照下 \textbf{LFMC}；\textbf{VCFM} 针对风投基金；\textbf{SFA 第99条} 等豁免情形见 MAS 页面。\textbf{香港：} 组合资产管理常见证监会 \textbf{第9类}牌照，通常至少两名 \textbf{RO}。\textbf{澳大利亚：} 面向客户的 \textbf{AFSL}；批发基金常配合 \textbf{Responsible Entity / MIS}。\textbf{日本：} \textbf{金商法} 下第二类登记等，投信/投助为另一线条。
+
+\section{中东与非洲（示例）}
+
+\textbf{迪拜 DIFC：} \textbf{DFSA} 监管，常见 \textbf{Fund Manager} 类别，可设面向合格投资者的 \textbf{QIF、Exempt Fund} 等（规则见 DFSA Rulebook）。\textbf{阿布扎比 ADGM、沙特 CMA} 等为独立框架。\textbf{非洲} 各国差异大（如南非 \textbf{FSCA} 体系），须国别附录，不可与欧盟或美国规则混用。

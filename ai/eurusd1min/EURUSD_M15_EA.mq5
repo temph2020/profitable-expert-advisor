@@ -1,25 +1,25 @@
 //+------------------------------------------------------------------+
-//|                                                      ONNX_EA.mq5 |
+//|                                            EURUSD_M15_EA.mq5 |
 //|                                  Copyright 2025, MetaQuotes Ltd. |
 //|                                             https://www.mql5.com |
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2025, MetaQuotes Ltd."
 #property link      "https://www.mql5.com"
 #property version   "1.00"
-#property description "Expert Advisor using ONNX model for price prediction"
-#property description "Based on: https://www.mql5.com/en/docs/onnx/onnx_prepare"
+#property description "Expert Advisor using ONNX model for EURUSD 15-minute price prediction"
+#property description "Based on: https://www.mql5.com/en/docs/onnx/onnx_test"
 
 #include <Trade\Trade.mqh>
 
 //--- Resource: Embed ONNX model in EA
 // Based on: https://www.mql5.com/en/docs/onnx/onnx_test
 // Path is relative to MQL5 directory (not starting with \\Files\\)
-#resource "Files\\XAUUSD_H1_model.onnx" as uchar ExtModel[]
+#resource "Files\\EURUSD_M15_model.onnx" as uchar ExtModel[]
 
 //--- Input parameters
 input group "ONNX Model Settings"
 input string InpModelPath = "";  // ONNX Model Path (leave empty to use embedded resource)
-input int    InpLookback = 60;                              // Lookback Period (bars)
+input int    InpLookback = 60;                              // Lookback Period (bars = 15 hours)
 input bool   InpUsePrediction = true;                        // Use Model Prediction
 
 input group "Trading Settings"
@@ -56,6 +56,18 @@ int OnInit()
     trade.SetDeviationInPoints(InpSlippage);
     trade.SetTypeFilling(ORDER_FILLING_FOK);
     
+    // Check symbol
+    if(_Symbol != "EURUSD" && _Symbol != "EURUSD#")
+    {
+        Print("WARNING: This EA is designed for EURUSD. Current symbol: ", _Symbol);
+    }
+    
+    // Check timeframe
+    if(_Period != PERIOD_M15)
+    {
+        Print("WARNING: This EA is designed for M15 timeframe. Current timeframe: ", EnumToString(_Period));
+    }
+    
     // Load ONNX model
     // Based on: https://www.mql5.com/en/docs/onnx/onnx_test
     Print("Loading ONNX model from embedded resource...");
@@ -67,7 +79,7 @@ int OnInit()
     {
         int error = GetLastError();
         Print("ERROR: Failed to create ONNX model from resource. Error: ", error);
-        Print("Make sure the model file exists at: MQL5\\Files\\XAUUSD_H1_model.onnx");
+        Print("Make sure the model file exists at: MQL5\\Files\\EURUSD_M15_model.onnx");
         Print("Then recompile the EA to embed it as a resource.");
         return(INIT_FAILED);
     }
@@ -81,15 +93,29 @@ int OnInit()
         return(INIT_FAILED);
     }
     
-    // Set output shape - per MQL5 documentation
-    const long ExtOutputShape[] = {1, 1}; // batch=1, single output value
-    if(!OnnxSetOutputShape(onnx_handle, 0, ExtOutputShape))
+    // Set output shapes - per MQL5 documentation (multi-output: price_change, sl_atr, tp_atr)
+    const long ExtOutputShape0[] = {1, 1}; // batch=1, price change output
+    const long ExtOutputShape1[] = {1, 1}; // batch=1, SL (ATR) output
+    const long ExtOutputShape2[] = {1, 1}; // batch=1, TP (ATR) output
+    
+    if(!OnnxSetOutputShape(onnx_handle, 0, ExtOutputShape0))
     {
-        Print("OnnxSetOutputShape failed, error ", GetLastError());
+        Print("OnnxSetOutputShape[0] failed, error ", GetLastError());
         OnnxRelease(onnx_handle);
         return(INIT_FAILED);
     }
-    
+    if(!OnnxSetOutputShape(onnx_handle, 1, ExtOutputShape1))
+    {
+        Print("OnnxSetOutputShape[1] failed, error ", GetLastError());
+        OnnxRelease(onnx_handle);
+        return(INIT_FAILED);
+    }
+    if(!OnnxSetOutputShape(onnx_handle, 2, ExtOutputShape2))
+    {
+        Print("OnnxSetOutputShape[2] failed, error ", GetLastError());
+        OnnxRelease(onnx_handle);
+        return(INIT_FAILED);
+    }
     
     // Get model info
     long input_count = OnnxGetInputCount(onnx_handle);
@@ -188,25 +214,33 @@ void OnTick()
         return;
     }
     
-    Print("Input matrix prepared: Rows=", input_matrix.Rows(), ", Cols=", input_matrix.Cols());
+    // Run ONNX model - multi-output: price_change, sl_atr, tp_atr
+    vectorf output_price_change(1);
+    vectorf output_sl_atr(1);
+    vectorf output_tp_atr(1);
     
-    // Run ONNX model - use matrixf and vectorf per MQL5 documentation
-    vectorf output_vector(1);
-    if(!RunONNXModel(input_matrix, output_vector))
+    if(!RunONNXModel(input_matrix, output_price_change, output_sl_atr, output_tp_atr))
     {
         Print("ERROR: Failed to run ONNX model");
         return;
     }
     
-    // Get prediction
-    if(output_vector.Size() == 0)
+    // Get predictions
+    if(output_price_change.Size() == 0 || output_sl_atr.Size() == 0 || output_tp_atr.Size() == 0)
     {
         Print("ERROR: Empty output from ONNX model");
         return;
     }
     
-    // Model now predicts price change percentage directly (e.g., -0.003 = -0.3%)
-    double predicted_change_pct = output_vector[0];
+    // Model outputs: [price_change_pct, sl_atr_multiple, tp_atr_multiple]
+    double predicted_change_pct = output_price_change[0];
+    double predicted_sl_atr = output_sl_atr[0];
+    double predicted_tp_atr = output_tp_atr[0];
+    
+    // Ensure positive values for SL/TP
+    predicted_sl_atr = MathMax(0.5, predicted_sl_atr);  // Minimum 0.5 ATR
+    predicted_tp_atr = MathMax(1.0, predicted_tp_atr);  // Minimum 1.0 ATR
+    
     double current_price = SymbolInfoDouble(_Symbol, SYMBOL_BID);
     
     // Check if prediction is percentage (between -1 and 1) or absolute price (old format)
@@ -243,7 +277,7 @@ void OnTick()
     last_prediction = predicted_price;
     last_confidence = confidence;
     
-    // Calculate ATR for dynamic SL/TP
+    // Calculate ATR for converting model's ATR multiples to actual price distances
     double atr_value = 0.0;
     double atr_array[];
     ArraySetAsSeries(atr_array, true);
@@ -257,31 +291,18 @@ void OnTick()
         IndicatorRelease(atr_handle);
     }
     
-    // Calculate predicted SL/TP based on prediction, confidence, and volatility
+    // Use model's predicted SL/TP (in ATR multiples) directly
     double predicted_sl = 0.0;
     double predicted_tp = 0.0;
     if(InpUsePredictedSLTP && atr_value > 0)
     {
-        // Calculate SL/TP based on ATR, prediction, and confidence
-        double predicted_move = MathAbs(predicted_price - current_price);
+        // Model predicts SL and TP in ATR multiples - convert to price distance
+        predicted_sl = atr_value * predicted_sl_atr;
+        predicted_tp = atr_value * predicted_tp_atr;
         
-        // SL: Based on ATR and confidence
-        // Higher confidence = tighter SL, lower confidence = wider SL
-        double sl_atr_mult = InpSLMultiplier / MathMax(confidence, 0.1);
-        sl_atr_mult = MathMax(sl_atr_mult, InpMinSLATR);
-        predicted_sl = atr_value * sl_atr_mult;
-        
-        // TP: Use a fraction of predicted move (not the full move)
-        // Take 30-50% of predicted move as TP, but ensure minimum
-        double tp_fraction = 0.3 + (confidence * 0.2); // 30-50% based on confidence
-        double tp_from_prediction = predicted_move * tp_fraction;
-        
-        // Also calculate TP from ATR multiplier
-        double tp_from_atr = atr_value * InpTPMultiplier;
-        
-        // Use the smaller of the two (more conservative)
-        predicted_tp = MathMin(tp_from_prediction, tp_from_atr);
-        predicted_tp = MathMax(predicted_tp, atr_value * InpMinTPATR); // Minimum TP
+        // Ensure minimums from input parameters
+        predicted_sl = MathMax(predicted_sl, atr_value * InpMinSLATR);
+        predicted_tp = MathMax(predicted_tp, atr_value * InpMinTPATR);
         
         // Ensure TP is at least 1.5x SL for risk/reward
         if(predicted_tp < predicted_sl * 1.5)
@@ -289,11 +310,19 @@ void OnTick()
             predicted_tp = predicted_sl * 1.5;
         }
         
-        // Cap TP at maximum 80% of predicted move (don't be too greedy)
-        double max_tp = predicted_move * 0.8;
-        if(predicted_tp > max_tp)
+        // Get broker's stop level requirements
+        int stop_level = (int)SymbolInfoInteger(_Symbol, SYMBOL_TRADE_STOPS_LEVEL);
+        double point = SymbolInfoDouble(_Symbol, SYMBOL_POINT);
+        double min_stop_distance = stop_level * point;
+        
+        // Ensure SL/TP meet broker's minimum stop level
+        if(predicted_sl < min_stop_distance)
         {
-            predicted_tp = max_tp;
+            predicted_sl = min_stop_distance;
+        }
+        if(predicted_tp < min_stop_distance)
+        {
+            predicted_tp = min_stop_distance;
         }
     }
     
@@ -305,8 +334,8 @@ void OnTick()
           " ATR=", atr_value);
     if(InpUsePredictedSLTP && predicted_sl > 0 && predicted_tp > 0)
     {
-        Print("  Predicted SL=", predicted_sl, " (", predicted_sl/current_price*100, "%)",
-              " Predicted TP=", predicted_tp, " (", predicted_tp/current_price*100, "%)");
+        Print("  Model SL=", predicted_sl_atr, "x ATR (", predicted_sl, " points, ", predicted_sl/current_price*100, "%)",
+              " Model TP=", predicted_tp_atr, "x ATR (", predicted_tp, " points, ", predicted_tp/current_price*100, "%)");
     }
     
     // Check if we should trade
@@ -360,9 +389,6 @@ void OnTick()
 //+------------------------------------------------------------------+
 bool PrepareInputData(float &input_array[])
 {
-    // We need to prepare data similar to training
-    // This is a simplified version - you may need to adjust based on your model
-    
     int lookback = InpLookback;
     int features = 13; // OHLC(4) + volume(1) + RSI(1) + EMA20(1) + EMA50(1) + ATR(1) + price_change(1) + high_low_ratio(1) + volume_ma(1) + volume_ratio(1) = 13
     
@@ -409,7 +435,7 @@ bool PrepareInputData(float &input_array[])
         return false;
     }
     
-    // Calculate indicators (simplified - you may need to match training exactly)
+    // Calculate indicators
     double rsi[], ema20[], ema50[], atr[];
     ArraySetAsSeries(rsi, true);
     ArraySetAsSeries(ema20, true);
@@ -464,26 +490,24 @@ bool PrepareInputData(float &input_array[])
         int count = 0;
         for(int k = j; k < j + 20 && k < ArraySize(volume); k++)
         {
-            sum += (double)volume[k];  // Convert long to double
+            sum += (double)volume[k];
             count++;
         }
-        volume_ma[j] = count > 0 ? sum / count : (double)volume[j];  // Convert long to double
+        volume_ma[j] = count > 0 ? sum / count : (double)volume[j];
     }
     
     // Prepare features - MUST match Python training exactly (13 features)
-    // IMPORTANT: This uses simplified normalization. For best results, implement MinMaxScaler from training.
-    // The scaler is saved as models/XAUUSD_H1_scaler.pkl - you may need to export scaler parameters to MQL5
     int idx = 0;
     for(int i = 0; i < lookback; i++)
     {
-        // Feature 1-4: OHLC (raw values, will be normalized by scaler)
+        // Feature 1-4: OHLC
         input_array[idx++] = (float)open[i];
         input_array[idx++] = (float)high[i];
         input_array[idx++] = (float)low[i];
         input_array[idx++] = (float)close[i];
         
         // Feature 5: Volume (normalized by 1,000,000)
-        input_array[idx++] = (float)((double)volume[i] / 1000000.0);  // Convert long to double first
+        input_array[idx++] = (float)((double)volume[i] / 1000000.0);
         
         // Feature 6: RSI (normalized by 100)
         input_array[idx++] = (float)(rsi[i] / 100.0);
@@ -508,17 +532,9 @@ bool PrepareInputData(float &input_array[])
         input_array[idx++] = (float)(volume_ma[i] / 1000000.0);
         
         // Feature 13: Volume ratio
-        double vol_ratio = volume_ma[i] > 0 ? (double)volume[i] / volume_ma[i] : 1.0;  // Convert long to double
+        double vol_ratio = volume_ma[i] > 0 ? (double)volume[i] / volume_ma[i] : 1.0;
         input_array[idx++] = (float)vol_ratio;
     }
-    
-    // Reshape for model: (1, lookback, features)
-    // ONNX expects shape [1, lookback, features]
-    float reshaped[];
-    ArrayResize(reshaped, 1 * lookback * features);
-    ArrayCopy(reshaped, input_array);
-    
-    ArrayCopy(input_array, reshaped);
     
     return true;
 }
@@ -526,17 +542,20 @@ bool PrepareInputData(float &input_array[])
 //+------------------------------------------------------------------+
 //| Run ONNX model                                                   |
 //+------------------------------------------------------------------+
-bool RunONNXModel(matrixf &input_matrix, vectorf &output_vector)
+bool RunONNXModel(matrixf &input_matrix, vectorf &output_price_change, vectorf &output_sl_atr, vectorf &output_tp_atr)
 {
     if(onnx_handle == INVALID_HANDLE)
         return false;
     
-    // Run model - shapes are already set in OnInit per MQL5 documentation
-    // Based on: https://www.mql5.com/en/docs/onnx/onnx_test
-    // OnnxRun expects matrixf and vectorf, not flat arrays
-    if(!OnnxRun(onnx_handle, ONNX_DEBUG_LOGS | ONNX_NO_CONVERSION, input_matrix, output_vector))
+    // For multi-output ONNX models in MQL5, OnnxRun expects all outputs as separate parameters
+    // Function signature: OnnxRun(handle, flags, input, output1, output2, output3, ...)
+    // This is 4 parameters total: handle, flags, input, and then all outputs
+    
+    if(!OnnxRun(onnx_handle, ONNX_DEBUG_LOGS | ONNX_NO_CONVERSION, input_matrix, 
+                output_price_change, output_sl_atr, output_tp_atr))
     {
         Print("ERROR: Failed to run ONNX model. Error: ", GetLastError());
+        Print("Model has ", OnnxGetOutputCount(onnx_handle), " outputs");
         return false;
     }
     
@@ -552,12 +571,29 @@ void OpenBuyPosition(double predicted_sl = 0.0, double predicted_tp = 0.0)
     double sl = 0.0;
     double tp = 0.0;
     
+    // Get broker's stop level requirements
+    int stop_level = (int)SymbolInfoInteger(_Symbol, SYMBOL_TRADE_STOPS_LEVEL);
+    double point = SymbolInfoDouble(_Symbol, SYMBOL_POINT);
+    double min_stop_distance = stop_level * point;
+    
     if(InpUsePredictedSLTP && predicted_sl > 0 && predicted_tp > 0)
     {
         // Use predicted SL/TP
+        // For BUY: SL below entry, TP above entry
         sl = price - predicted_sl;
         tp = price + predicted_tp;
-        Print("Using predicted SL/TP: SL=", sl, " TP=", tp);
+        
+        // Validate stops meet broker requirements
+        if(sl > 0 && (price - sl) < min_stop_distance)
+        {
+            sl = price - min_stop_distance;
+        }
+        if(tp > 0 && (tp - price) < min_stop_distance)
+        {
+            tp = price + min_stop_distance;
+        }
+        
+        Print("Using predicted SL/TP: Entry=", price, " SL=", sl, " TP=", tp, " (SL distance: ", price - sl, ", TP distance: ", tp - price, ")");
     }
     else
     {
@@ -573,6 +609,8 @@ void OpenBuyPosition(double predicted_sl = 0.0, double predicted_tp = 0.0)
     else
     {
         Print("Failed to open buy order. Error: ", trade.ResultRetcodeDescription());
+        Print("  Entry: ", price, " SL: ", sl, " TP: ", tp);
+        Print("  Stop Level: ", stop_level, " Min Distance: ", min_stop_distance);
     }
 }
 
@@ -585,12 +623,29 @@ void OpenSellPosition(double predicted_sl = 0.0, double predicted_tp = 0.0)
     double sl = 0.0;
     double tp = 0.0;
     
+    // Get broker's stop level requirements
+    int stop_level = (int)SymbolInfoInteger(_Symbol, SYMBOL_TRADE_STOPS_LEVEL);
+    double point = SymbolInfoDouble(_Symbol, SYMBOL_POINT);
+    double min_stop_distance = stop_level * point;
+    
     if(InpUsePredictedSLTP && predicted_sl > 0 && predicted_tp > 0)
     {
         // Use predicted SL/TP
+        // For SELL: SL above entry, TP below entry
         sl = price + predicted_sl;
         tp = price - predicted_tp;
-        Print("Using predicted SL/TP: SL=", sl, " TP=", tp);
+        
+        // Validate stops meet broker requirements
+        if(sl > 0 && (sl - price) < min_stop_distance)
+        {
+            sl = price + min_stop_distance;
+        }
+        if(tp > 0 && (price - tp) < min_stop_distance)
+        {
+            tp = price - min_stop_distance;
+        }
+        
+        Print("Using predicted SL/TP: Entry=", price, " SL=", sl, " TP=", tp, " (SL distance: ", sl - price, ", TP distance: ", price - tp, ")");
     }
     else
     {
@@ -606,6 +661,8 @@ void OpenSellPosition(double predicted_sl = 0.0, double predicted_tp = 0.0)
     else
     {
         Print("Failed to open sell order. Error: ", trade.ResultRetcodeDescription());
+        Print("  Entry: ", price, " SL: ", sl, " TP: ", tp);
+        Print("  Stop Level: ", stop_level, " Min Distance: ", min_stop_distance);
     }
 }
 
@@ -617,25 +674,8 @@ void ManagePosition(double predicted_price, double price_change_pct)
     if(!PositionSelect(_Symbol))
         return;
     
-    long position_type = PositionGetInteger(POSITION_TYPE);
-    double position_open_price = PositionGetDouble(POSITION_PRICE_OPEN);
-    double current_profit = PositionGetDouble(POSITION_PROFIT);
-    
-    // Simple management: close if prediction reverses
-    if(position_type == POSITION_TYPE_BUY && price_change_pct < -InpPredictionThreshold)
-    {
-        // Prediction turned bearish, close long
-        if(trade.PositionClose(_Symbol))
-        {
-            Print("Closed long position due to bearish prediction");
-        }
-    }
-    else if(position_type == POSITION_TYPE_SELL && price_change_pct > InpPredictionThreshold)
-    {
-        // Prediction turned bullish, close short
-        if(trade.PositionClose(_Symbol))
-        {
-            Print("Closed short position due to bullish prediction");
-        }
-    }
+    // Simple position management - can be enhanced
+    // For now, just log the position status
+    double position_profit = PositionGetDouble(POSITION_PROFIT);
+    Print("Position exists. Profit: ", position_profit, " Predicted change: ", price_change_pct, "%");
 }
