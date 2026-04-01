@@ -13,20 +13,7 @@
 #include <Indicators\Trend.mqh>
 #include <Indicators\Volumes.mqh>
 #include "MagicNumberHelpers.mqh"
-// Include strategy implementations early so structs are available
-#include "Strategies/DarvasBoxStrategy.mqh"
-#include "Strategies/EMASlopeDistanceStrategy.mqh"
-#include "Strategies/RSICrossOverReversalStrategy.mqh"
-#include "Strategies/RSIMidPointHijackStrategy.mqh"
-#include "Strategies/RSIScalpingStrategy.mqh"
-#include "Strategies/RSIReversalAsianStrategy.mqh"
-
-//+------------------------------------------------------------------+
-//| Global Lot Size Variables (for dynamic lot sizing)               |
-//+------------------------------------------------------------------+
-double g_ES_LotSize;  // EMA Slope Distance lot size
-double g_RC_LotSize;  // RSI CrossOver Reversal lot size
-double g_RM_LotSize;  // RSI MidPoint Hijack lot size
+#include "PerformanceEvaluator.mqh"
 
 //+------------------------------------------------------------------+
 //| Strategy Enable/Disable Switches                                 |
@@ -42,8 +29,6 @@ input bool EnableRSIScalpingMSFT = true;
 input bool EnableRSIScalpingNVDA = true;
 input bool EnableRSIScalpingTSLA = true;
 input bool EnableRSIScalpingXAUUSD = true;
-input bool EnableRSIReversalAsianEURUSD = true;
-input bool EnableRSIReversalAsianAUDUSD = true;
 
 //+------------------------------------------------------------------+
 //| Strategy 1: DarvasBoxXAUUSD                                      |
@@ -268,50 +253,6 @@ input int    RS_XAUUSD_MagicNumber = 129102315;
 input int    RS_XAUUSD_Slippage = 3;
 
 //+------------------------------------------------------------------+
-//| Strategy 11-12: RSI Reversal Asian Strategies                    |
-//| Each RSI Reversal Asian strategy trades on its own symbol:       |
-//| - EURUSD: Euro/USD                                                |
-//| - AUDUSD: Australian Dollar/USD                                   |
-//+------------------------------------------------------------------+
-input group "=== RSI Reversal Asian EURUSD ==="
-input string RRA_EURUSD_Symbol = "EURUSD";
-input int    RRA_EURUSD_RSIPeriod = 28;
-input double RRA_EURUSD_OverboughtLevel = 60;
-input double RRA_EURUSD_OversoldLevel = 8;
-input int    RRA_EURUSD_TakeProfitPips = 175;
-input int    RRA_EURUSD_StopLossPips = 5;
-input double RRA_EURUSD_MaxLotSize = 0.1;
-input int    RRA_EURUSD_MaxSpread = 1000;
-input int    RRA_EURUSD_MaxDuration = 270;
-input bool   RRA_EURUSD_UseStopLoss = false;
-input bool   RRA_EURUSD_UseTakeProfit = false;
-input bool   RRA_EURUSD_UseRSIExit = true;
-input double RRA_EURUSD_RSIExitLevel = 55;
-input bool   RRA_EURUSD_CloseOutsideSession = false;
-input ENUM_TIMEFRAMES RRA_EURUSD_TimeFrame = PERIOD_M15;
-input int    RRA_EURUSD_MagicNumber = 30001;
-input int    RRA_EURUSD_Slippage = 3;
-
-input group "=== RSI Reversal Asian AUDUSD ==="
-input string RRA_AUDUSD_Symbol = "AUDUSD";
-input int    RRA_AUDUSD_RSIPeriod = 28;
-input double RRA_AUDUSD_OverboughtLevel = 68;
-input double RRA_AUDUSD_OversoldLevel = 30;
-input int    RRA_AUDUSD_TakeProfitPips = 175;
-input int    RRA_AUDUSD_StopLossPips = 5;
-input double RRA_AUDUSD_MaxLotSize = 0.2;
-input int    RRA_AUDUSD_MaxSpread = 1000;
-input int    RRA_AUDUSD_MaxDuration = 340;
-input bool   RRA_AUDUSD_UseStopLoss = false;
-input bool   RRA_AUDUSD_UseTakeProfit = false;
-input bool   RRA_AUDUSD_UseRSIExit = true;
-input double RRA_AUDUSD_RSIExitLevel = 48;
-input bool   RRA_AUDUSD_CloseOutsideSession = true;
-input ENUM_TIMEFRAMES RRA_AUDUSD_TimeFrame = PERIOD_M15;
-input int    RRA_AUDUSD_MagicNumber = 30002;
-input int    RRA_AUDUSD_Slippage = 3;
-
-//+------------------------------------------------------------------+
 //| Global Variables - DarvasBox                                      |
 //+------------------------------------------------------------------+
 struct DarvasBoxData {
@@ -396,6 +337,26 @@ struct RSIMidPointData {
 };
 
 //+------------------------------------------------------------------+
+//| Global Variables - RSI Scalping                                  |
+//+------------------------------------------------------------------+
+struct RSIScalpingData {
+   string symbol;
+   bool isInitialized;
+   CTrade trade;
+   int rsi_handle;
+   double rsi_buffer[];
+   double rsi_prev;
+   double rsi_current;
+   double rsi_two_bars_ago;
+   bool position_open;
+   ulong position_ticket;
+   ENUM_POSITION_TYPE current_position_type;
+   datetime last_bar_time;
+   bool rsi_against_position;
+   int bars_against_count;
+};
+
+//+------------------------------------------------------------------+
 //| Global Strategy Instances                                        |
 //+------------------------------------------------------------------+
 DarvasBoxData dbData;
@@ -410,10 +371,19 @@ RSIScalpingData rsTSLAData;
 RSIScalpingData rsXAUUSDData;
 
 //+------------------------------------------------------------------+
-//| Global Variables - RSI Reversal Asian                            |
+//| Global Variables for Dynamic Lot Sizes                           |
 //+------------------------------------------------------------------+
-RSIReversalAsianData rraEURUSDData;
-RSIReversalAsianData rraAUDUSDData;
+// All strategies start with minimum lot size for safety (will be adjusted by performance evaluator)
+double g_DB_LotSize = 0.01;  // DarvasBox uses fixed lot size
+double g_ES_LotSize = 0.01;  // EMA Slope Distance - start with minimum
+double g_RC_LotSize = 0.01;  // RSI CrossOver Reversal - start with minimum
+double g_RM_LotSize = 0.01;  // RSI MidPoint Hijack - start with minimum
+double g_RS_APPL_LotSize = 5.0;  // Stock - start with stock minimum (5.0)
+double g_RS_BTCUSD_LotSize = 0.01;  // Crypto - start with forex minimum (0.01)
+double g_RS_MSFT_LotSize = 5.0;  // Stock - start with stock minimum (5.0)
+double g_RS_NVDA_LotSize = 5.0;  // Stock - start with stock minimum (5.0)
+double g_RS_TSLA_LotSize = 5.0;  // Stock - start with stock minimum (5.0)
+double g_RS_XAUUSD_LotSize = 0.01;  // Forex - start with forex minimum (0.01)
 
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
@@ -422,63 +392,145 @@ int OnInit()
 {
    int initResult = INIT_SUCCEEDED;
    
-   // Initialize global lot size variables
-   g_ES_LotSize = 0.03;
-   g_RC_LotSize = 0.01;
-   g_RM_LotSize = 0.02;
+   // Initialize Performance Evaluator
+   InitPerformanceTracking();
    
    // Initialize strategies - log warnings but don't fail entire EA if symbol unavailable
    if(EnableDarvasBox)
+   {
       if(!InitDarvasBox(DB_Symbol))
          Print("Warning: DarvasBox strategy failed to initialize for symbol '", DB_Symbol, "'");
+      else
+         RegisterStrategy("DarvasBox", DB_MagicNumber, 0.01, DB_Symbol); // Fixed lot size
+   }
    
    if(EnableEMASlopeDistance)
+   {
       if(!InitEMASlopeDistance(ES_Symbol))
          Print("Warning: EMASlopeDistance strategy failed to initialize for symbol '", ES_Symbol, "'");
+      else
+      {
+         RegisterStrategy("EMASlopeDistance", ES_MagicNumber, ES_LotGröße, ES_Symbol);
+         // Start with minimum lot size (will be adjusted by performance evaluator)
+         double minLot = GetMinLotSizeForSymbol(ES_Symbol);
+         g_ES_LotSize = minLot;
+      }
+   }
    
    if(EnableRSICrossOverReversal)
+   {
       if(!InitRSICrossOverReversal(RC_Symbol))
          Print("Warning: RSICrossOverReversal strategy failed to initialize for symbol '", RC_Symbol, "'");
+      else
+      {
+         RegisterStrategy("RSICrossOverReversal", RC_MagicNumber, RC_lotSize, RC_Symbol);
+         // Start with minimum lot size (will be adjusted by performance evaluator)
+         double minLot = GetMinLotSizeForSymbol(RC_Symbol);
+         g_RC_LotSize = minLot;
+      }
+   }
    
    if(EnableRSIMidPointHijack)
+   {
       if(!InitRSIMidPointHijack(RM_Symbol))
          Print("Warning: RSIMidPointHijack strategy failed to initialize for symbol '", RM_Symbol, "'");
+      else
+      {
+         RegisterStrategy("RSIMidPointHijack", RM_InpMagicNumberRSIFollow, RM_InpLotSize, RM_Symbol);
+         RegisterStrategy("RSIMidPointHijack_Reverse", RM_InpMagicNumberRSIReverse, RM_InpLotSize, RM_Symbol);
+         RegisterStrategy("RSIMidPointHijack_EMACross", RM_InpMagicNumberEMACross, RM_InpLotSize, RM_Symbol);
+         // Start with minimum lot size (will be adjusted by performance evaluator)
+         double minLot = GetMinLotSizeForSymbol(RM_Symbol);
+         g_RM_LotSize = minLot;
+      }
+   }
    
    // Initialize RSI Scalping strategies - don't fail entire EA if symbol unavailable
    if(EnableRSIScalpingAPPL)
+   {
       InitRSIScalping(rsAPPLData, RS_APPL_Symbol, RS_APPL_TimeFrame, RS_APPL_RSI_Period, RS_APPL_RSI_Applied_Price, RS_APPL_MagicNumber, RS_APPL_Slippage);
+      RegisterStrategy("RSIScalpingAPPL", RS_APPL_MagicNumber, RS_APPL_LotSize, RS_APPL_Symbol);
+      // Start with minimum lot size (will be adjusted by performance evaluator)
+      double minLot = GetMinLotSizeForSymbol(RS_APPL_Symbol);
+      g_RS_APPL_LotSize = minLot;
+   }
    
    if(EnableRSIScalpingBTCUSD)
+   {
       InitRSIScalping(rsBTCUSDData, RS_BTCUSD_Symbol, RS_BTCUSD_TimeFrame, RS_BTCUSD_RSI_Period, RS_BTCUSD_RSI_Applied_Price, RS_BTCUSD_MagicNumber, RS_BTCUSD_Slippage);
+      RegisterStrategy("RSIScalpingBTCUSD", RS_BTCUSD_MagicNumber, RS_BTCUSD_LotSize, RS_BTCUSD_Symbol);
+      // Start with minimum lot size (will be adjusted by performance evaluator)
+      double minLot = GetMinLotSizeForSymbol(RS_BTCUSD_Symbol);
+      g_RS_BTCUSD_LotSize = minLot;
+   }
    
    if(EnableRSIScalpingMSFT)
+   {
       InitRSIScalping(rsMSFTData, RS_MSFT_Symbol, RS_MSFT_TimeFrame, RS_MSFT_RSI_Period, RS_MSFT_RSI_Applied_Price, RS_MSFT_MagicNumber, RS_MSFT_Slippage);
+      RegisterStrategy("RSIScalpingMSFT", RS_MSFT_MagicNumber, RS_MSFT_LotSize, RS_MSFT_Symbol);
+      // Start with minimum lot size (will be adjusted by performance evaluator)
+      double minLot = GetMinLotSizeForSymbol(RS_MSFT_Symbol);
+      g_RS_MSFT_LotSize = minLot;
+   }
    
    if(EnableRSIScalpingNVDA)
+   {
       InitRSIScalping(rsNVDAData, RS_NVDA_Symbol, RS_NVDA_TimeFrame, RS_NVDA_RSI_Period, RS_NVDA_RSI_Applied_Price, RS_NVDA_MagicNumber, RS_NVDA_Slippage);
+      RegisterStrategy("RSIScalpingNVDA", RS_NVDA_MagicNumber, RS_NVDA_LotSize, RS_NVDA_Symbol);
+      // Start with minimum lot size (will be adjusted by performance evaluator)
+      double minLot = GetMinLotSizeForSymbol(RS_NVDA_Symbol);
+      g_RS_NVDA_LotSize = minLot;
+   }
    
    if(EnableRSIScalpingTSLA)
+   {
       InitRSIScalping(rsTSLAData, RS_TSLA_Symbol, RS_TSLA_TimeFrame, RS_TSLA_RSI_Period, RS_TSLA_RSI_Applied_Price, RS_TSLA_MagicNumber, RS_TSLA_Slippage);
+      RegisterStrategy("RSIScalpingTSLA", RS_TSLA_MagicNumber, RS_TSLA_LotSize, RS_TSLA_Symbol);
+      // Start with minimum lot size (will be adjusted by performance evaluator)
+      double minLot = GetMinLotSizeForSymbol(RS_TSLA_Symbol);
+      g_RS_TSLA_LotSize = minLot;
+   }
    
    if(EnableRSIScalpingXAUUSD)
+   {
       InitRSIScalping(rsXAUUSDData, RS_XAUUSD_Symbol, RS_XAUUSD_TimeFrame, RS_XAUUSD_RSI_Period, RS_XAUUSD_RSI_Applied_Price, RS_XAUUSD_MagicNumber, RS_XAUUSD_Slippage);
+      RegisterStrategy("RSIScalpingXAUUSD", RS_XAUUSD_MagicNumber, RS_XAUUSD_LotSize, RS_XAUUSD_Symbol);
+      // Start with minimum lot size (will be adjusted by performance evaluator)
+      double minLot = GetMinLotSizeForSymbol(RS_XAUUSD_Symbol);
+      g_RS_XAUUSD_LotSize = minLot;
+   }
    
-   // Initialize RSI Reversal Asian strategies
-   if(EnableRSIReversalAsianEURUSD)
-      if(!InitRSIReversalAsian(rraEURUSDData, RRA_EURUSD_Symbol, RRA_EURUSD_RSIPeriod, RRA_EURUSD_OverboughtLevel, RRA_EURUSD_OversoldLevel,
-                               RRA_EURUSD_TakeProfitPips, RRA_EURUSD_StopLossPips, RRA_EURUSD_MaxLotSize,
-                               RRA_EURUSD_MaxSpread, RRA_EURUSD_MaxDuration, RRA_EURUSD_UseStopLoss,
-                               RRA_EURUSD_UseTakeProfit, RRA_EURUSD_UseRSIExit, RRA_EURUSD_RSIExitLevel,
-                               RRA_EURUSD_CloseOutsideSession, RRA_EURUSD_TimeFrame, RRA_EURUSD_MagicNumber, RRA_EURUSD_Slippage))
-         Print("Warning: RSIReversalAsianEURUSD strategy failed to initialize for symbol '", RRA_EURUSD_Symbol, "'");
-   
-   if(EnableRSIReversalAsianAUDUSD)
-      if(!InitRSIReversalAsian(rraAUDUSDData, RRA_AUDUSD_Symbol, RRA_AUDUSD_RSIPeriod, RRA_AUDUSD_OverboughtLevel, RRA_AUDUSD_OversoldLevel,
-                               RRA_AUDUSD_TakeProfitPips, RRA_AUDUSD_StopLossPips, RRA_AUDUSD_MaxLotSize,
-                               RRA_AUDUSD_MaxSpread, RRA_AUDUSD_MaxDuration, RRA_AUDUSD_UseStopLoss,
-                               RRA_AUDUSD_UseTakeProfit, RRA_AUDUSD_UseRSIExit, RRA_AUDUSD_RSIExitLevel,
-                               RRA_AUDUSD_CloseOutsideSession, RRA_AUDUSD_TimeFrame, RRA_AUDUSD_MagicNumber, RRA_AUDUSD_Slippage))
-         Print("Warning: RSIReversalAsianAUDUSD strategy failed to initialize for symbol '", RRA_AUDUSD_Symbol, "'");
+   // Load adjusted lot sizes from performance evaluator
+   if(PE_EnableAutoAdjustment)
+   {
+      double adjustedLot;
+      adjustedLot = GetStrategyLotSize("EMASlopeDistance", ES_MagicNumber);
+      if(adjustedLot > 0) g_ES_LotSize = adjustedLot;
+      
+      adjustedLot = GetStrategyLotSize("RSICrossOverReversal", RC_MagicNumber);
+      if(adjustedLot > 0) g_RC_LotSize = adjustedLot;
+      
+      adjustedLot = GetStrategyLotSize("RSIMidPointHijack", RM_InpMagicNumberRSIFollow);
+      if(adjustedLot > 0) g_RM_LotSize = adjustedLot;
+      
+      adjustedLot = GetStrategyLotSize("RSIScalpingAPPL", RS_APPL_MagicNumber);
+      if(adjustedLot > 0) g_RS_APPL_LotSize = adjustedLot;
+      
+      adjustedLot = GetStrategyLotSize("RSIScalpingBTCUSD", RS_BTCUSD_MagicNumber);
+      if(adjustedLot > 0) g_RS_BTCUSD_LotSize = adjustedLot;
+      
+      adjustedLot = GetStrategyLotSize("RSIScalpingMSFT", RS_MSFT_MagicNumber);
+      if(adjustedLot > 0) g_RS_MSFT_LotSize = adjustedLot;
+      
+      adjustedLot = GetStrategyLotSize("RSIScalpingNVDA", RS_NVDA_MagicNumber);
+      if(adjustedLot > 0) g_RS_NVDA_LotSize = adjustedLot;
+      
+      adjustedLot = GetStrategyLotSize("RSIScalpingTSLA", RS_TSLA_MagicNumber);
+      if(adjustedLot > 0) g_RS_TSLA_LotSize = adjustedLot;
+      
+      adjustedLot = GetStrategyLotSize("RSIScalpingXAUUSD", RS_XAUUSD_MagicNumber);
+      if(adjustedLot > 0) g_RS_XAUUSD_LotSize = adjustedLot;
+   }
    
    Print("United EA initialized. Active strategies: ", 
          (EnableDarvasBox ? "DarvasBox " : ""),
@@ -490,9 +542,10 @@ int OnInit()
          (EnableRSIScalpingMSFT ? "RSIScalpingMSFT " : ""),
          (EnableRSIScalpingNVDA ? "RSIScalpingNVDA " : ""),
          (EnableRSIScalpingTSLA ? "RSIScalpingTSLA " : ""),
-         (EnableRSIScalpingXAUUSD ? "RSIScalpingXAUUSD " : ""),
-         (EnableRSIReversalAsianEURUSD ? "RSIReversalAsianEURUSD " : ""),
-         (EnableRSIReversalAsianAUDUSD ? "RSIReversalAsianAUDUSD " : ""));
+         (EnableRSIScalpingXAUUSD ? "RSIScalpingXAUUSD " : ""));
+   
+   if(PE_EnableLogging)
+      Print(GetPerformanceSummary());
    
    return initResult;
 }
@@ -532,12 +585,6 @@ void OnDeinit(const int reason)
    if(EnableRSIScalpingXAUUSD)
       DeinitRSIScalping(rsXAUUSDData);
    
-   if(EnableRSIReversalAsianEURUSD)
-      DeinitRSIReversalAsian(rraEURUSDData);
-   
-   if(EnableRSIReversalAsianAUDUSD)
-      DeinitRSIReversalAsian(rraAUDUSDData);
-   
    Print("United EA deinitialized. Reason: ", reason);
 }
 
@@ -546,6 +593,41 @@ void OnDeinit(const int reason)
 //+------------------------------------------------------------------+
 void OnTick()
 {
+   // Process performance evaluation (checks for quarter end and adjusts lot sizes)
+   ProcessPerformanceEvaluation();
+   
+   // Update lot sizes from performance evaluator if auto-adjustment is enabled
+   if(PE_EnableAutoAdjustment)
+   {
+      double adjustedLot;
+      adjustedLot = GetStrategyLotSize("EMASlopeDistance", ES_MagicNumber);
+      if(adjustedLot > 0) g_ES_LotSize = adjustedLot;
+      
+      adjustedLot = GetStrategyLotSize("RSICrossOverReversal", RC_MagicNumber);
+      if(adjustedLot > 0) g_RC_LotSize = adjustedLot;
+      
+      adjustedLot = GetStrategyLotSize("RSIMidPointHijack", RM_InpMagicNumberRSIFollow);
+      if(adjustedLot > 0) g_RM_LotSize = adjustedLot;
+      
+      adjustedLot = GetStrategyLotSize("RSIScalpingAPPL", RS_APPL_MagicNumber);
+      if(adjustedLot > 0) g_RS_APPL_LotSize = adjustedLot;
+      
+      adjustedLot = GetStrategyLotSize("RSIScalpingBTCUSD", RS_BTCUSD_MagicNumber);
+      if(adjustedLot > 0) g_RS_BTCUSD_LotSize = adjustedLot;
+      
+      adjustedLot = GetStrategyLotSize("RSIScalpingMSFT", RS_MSFT_MagicNumber);
+      if(adjustedLot > 0) g_RS_MSFT_LotSize = adjustedLot;
+      
+      adjustedLot = GetStrategyLotSize("RSIScalpingNVDA", RS_NVDA_MagicNumber);
+      if(adjustedLot > 0) g_RS_NVDA_LotSize = adjustedLot;
+      
+      adjustedLot = GetStrategyLotSize("RSIScalpingTSLA", RS_TSLA_MagicNumber);
+      if(adjustedLot > 0) g_RS_TSLA_LotSize = adjustedLot;
+      
+      adjustedLot = GetStrategyLotSize("RSIScalpingXAUUSD", RS_XAUUSD_MagicNumber);
+      if(adjustedLot > 0) g_RS_XAUUSD_LotSize = adjustedLot;
+   }
+   
    if(EnableDarvasBox)
       ProcessDarvasBox(DB_Symbol);
    
@@ -561,38 +643,41 @@ void OnTick()
    if(EnableRSIScalpingAPPL)
       ProcessRSIScalping(rsAPPLData, RS_APPL_Symbol, RS_APPL_TimeFrame, RS_APPL_RSI_Period, RS_APPL_RSI_Applied_Price,
                         RS_APPL_RSI_Overbought, RS_APPL_RSI_Oversold, RS_APPL_RSI_Target_Buy, RS_APPL_RSI_Target_Sell,
-                        RS_APPL_BarsToWait, RS_APPL_LotSize, RS_APPL_MagicNumber);
+                        RS_APPL_BarsToWait, g_RS_APPL_LotSize, RS_APPL_MagicNumber);
    
    if(EnableRSIScalpingBTCUSD)
       ProcessRSIScalping(rsBTCUSDData, RS_BTCUSD_Symbol, RS_BTCUSD_TimeFrame, RS_BTCUSD_RSI_Period, RS_BTCUSD_RSI_Applied_Price,
                         RS_BTCUSD_RSI_Overbought, RS_BTCUSD_RSI_Oversold, RS_BTCUSD_RSI_Target_Buy, RS_BTCUSD_RSI_Target_Sell,
-                        RS_BTCUSD_BarsToWait, RS_BTCUSD_LotSize, RS_BTCUSD_MagicNumber);
+                        RS_BTCUSD_BarsToWait, g_RS_BTCUSD_LotSize, RS_BTCUSD_MagicNumber);
    
    if(EnableRSIScalpingMSFT)
       ProcessRSIScalping(rsMSFTData, RS_MSFT_Symbol, RS_MSFT_TimeFrame, RS_MSFT_RSI_Period, RS_MSFT_RSI_Applied_Price,
                         RS_MSFT_RSI_Overbought, RS_MSFT_RSI_Oversold, RS_MSFT_RSI_Target_Buy, RS_MSFT_RSI_Target_Sell,
-                        RS_MSFT_BarsToWait, RS_MSFT_LotSize, RS_MSFT_MagicNumber);
+                        RS_MSFT_BarsToWait, g_RS_MSFT_LotSize, RS_MSFT_MagicNumber);
    
    if(EnableRSIScalpingNVDA)
       ProcessRSIScalping(rsNVDAData, RS_NVDA_Symbol, RS_NVDA_TimeFrame, RS_NVDA_RSI_Period, RS_NVDA_RSI_Applied_Price,
                         RS_NVDA_RSI_Overbought, RS_NVDA_RSI_Oversold, RS_NVDA_RSI_Target_Buy, RS_NVDA_RSI_Target_Sell,
-                        RS_NVDA_BarsToWait, RS_NVDA_LotSize, RS_NVDA_MagicNumber);
+                        RS_NVDA_BarsToWait, g_RS_NVDA_LotSize, RS_NVDA_MagicNumber);
    
    if(EnableRSIScalpingTSLA)
       ProcessRSIScalping(rsTSLAData, RS_TSLA_Symbol, RS_TSLA_TimeFrame, RS_TSLA_RSI_Period, RS_TSLA_RSI_Applied_Price,
                         RS_TSLA_RSI_Overbought, RS_TSLA_RSI_Oversold, RS_TSLA_RSI_Target_Buy, RS_TSLA_RSI_Target_Sell,
-                        RS_TSLA_BarsToWait, RS_TSLA_LotSize, RS_TSLA_MagicNumber);
+                        RS_TSLA_BarsToWait, g_RS_TSLA_LotSize, RS_TSLA_MagicNumber);
    
    if(EnableRSIScalpingXAUUSD)
       ProcessRSIScalping(rsXAUUSDData, RS_XAUUSD_Symbol, RS_XAUUSD_TimeFrame, RS_XAUUSD_RSI_Period, RS_XAUUSD_RSI_Applied_Price,
                         RS_XAUUSD_RSI_Overbought, RS_XAUUSD_RSI_Oversold, RS_XAUUSD_RSI_Target_Buy, RS_XAUUSD_RSI_Target_Sell,
-                        RS_XAUUSD_BarsToWait, RS_XAUUSD_LotSize, RS_XAUUSD_MagicNumber);
-   
-   if(EnableRSIReversalAsianEURUSD)
-      ProcessRSIReversalAsian(rraEURUSDData, RRA_EURUSD_MaxLotSize);
-   
-   if(EnableRSIReversalAsianAUDUSD)
-      ProcessRSIReversalAsian(rraAUDUSDData, RRA_AUDUSD_MaxLotSize);
+                        RS_XAUUSD_BarsToWait, g_RS_XAUUSD_LotSize, RS_XAUUSD_MagicNumber);
 }
+
+//+------------------------------------------------------------------+
+//| Include strategy implementations                                 |
+//+------------------------------------------------------------------+
+#include "Strategies/DarvasBoxStrategy.mqh"
+#include "Strategies/EMASlopeDistanceStrategy.mqh"
+#include "Strategies/RSICrossOverReversalStrategy.mqh"
+#include "Strategies/RSIMidPointHijackStrategy.mqh"
+#include "Strategies/RSIScalpingStrategy.mqh"
 
 //+------------------------------------------------------------------+

@@ -1,0 +1,36 @@
+\chapter{AMER：美国 RIA、商品池与加拿大 IFM}
+
+\section{美国：投资顾问注册}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}
+  \node[compliance=teal, minimum width=4.2cm] (adv) {Form ADV\\IARD 电子申报};
+  \node[compliance=blue, right=2.2cm of adv, minimum width=4.2cm] (sec) {SEC 或州监管\\视 AUM 与规则 203A-1};
+  \path (adv) -- node[coordinate, midway] (midadvsec) {} (sec);
+  \node[compliance=green!50!black, below=1.5cm of midadvsec, minimum width=8cm] (pf) {私募基金管理人：Schedule A/B 等披露\\对冲基金顾问额外信息（历史规则演进，以现行表格为准）};
+
+  \draw[compliance arrow] (adv) -- (sec) node[midway, above, font=\scriptsize] {注册/审查};
+  \draw[compliance arrow] (adv.south) -- ++(0,-0.35) -| (pf.north);
+  \draw[compliance arrow] (sec.south) -- ++(0,-0.35) -| (pf.north);
+
+  \node[font=\scriptsize, text width=9cm, align=center, below=0.35cm of pf]
+    {持续义务：账簿记录、宣传材料、合规政策、年检与修正案等。};
+\end{tikzpicture}
+\caption{美国投资顾问注册与私募披露关系（概念图）}
+\label{fig:us-ria}
+\end{figure}
+
+\textbf{要点：} 管理外部客户资产（含多数对冲基金架构）通常须注册为 \textbf{Investment Adviser}；\textbf{仅管理自有资产}或符合 \textbf{Exempt Reporting Adviser} 等情形可能减轻部分披露，但不等于无监管。\textbf{CFTC/NFA：} 策略以期货、商品池为主时可能需另行注册。
+
+官方入口示例：\url{https://www.sec.gov/divisions/investment/iaregulation/regia.htm}；AUM 门槛与联邦/州切换见 \textbf{17 CFR §275.203A-1} 等（以现行有效文本为准）。
+
+\section{加拿大：NI 31-103}
+
+\textbf{National Instrument 31-103} 协调各省证券监管，涵盖投资交易商、顾问、\textbf{Portfolio Manager}、\textbf{Investment Fund Manager} 等类别。新设基金管理人通常须在开展业务前完成相应注册或确认豁免适用。各省证监会网站提供非官方汇编与政策更新。
+
+示例索引：\url{https://www.osc.ca/en/securities-law/instruments-rules-policies/3/31-103/unofficial-consolidation-national-instrument-31-103-registration-requirements-exemptions-and}。
+
+\section{拉丁美洲（摘要）}
+
+\textbf{巴西 CVM：} 各类 \textbf{Fundo de Investimento} 须按类型注册并遵守治理与披露。\textbf{墨西哥} 等对基金与另类载体另有规定。\textbf{结论：} 拉美须\textbf{国别附录}，不可与美国 RIA 路径混为一谈。

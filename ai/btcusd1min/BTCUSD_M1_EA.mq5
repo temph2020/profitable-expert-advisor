@@ -1,20 +1,20 @@
 //+------------------------------------------------------------------+
-//|                                                      ONNX_EA.mq5 |
+//|                                              BTCUSD_M1_EA.mq5 |
 //|                                  Copyright 2025, MetaQuotes Ltd. |
 //|                                             https://www.mql5.com |
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2025, MetaQuotes Ltd."
 #property link      "https://www.mql5.com"
 #property version   "1.00"
-#property description "Expert Advisor using ONNX model for price prediction"
-#property description "Based on: https://www.mql5.com/en/docs/onnx/onnx_prepare"
+#property description "Expert Advisor using ONNX model for BTCUSD 1-minute price prediction"
+#property description "Based on: https://www.mql5.com/en/docs/onnx/onnx_test"
 
 #include <Trade\Trade.mqh>
 
 //--- Resource: Embed ONNX model in EA
 // Based on: https://www.mql5.com/en/docs/onnx/onnx_test
 // Path is relative to MQL5 directory (not starting with \\Files\\)
-#resource "Files\\XAUUSD_H1_model.onnx" as uchar ExtModel[]
+#resource "Files\\BTCUSD_M1_model.onnx" as uchar ExtModel[]
 
 //--- Input parameters
 input group "ONNX Model Settings"
@@ -56,6 +56,18 @@ int OnInit()
     trade.SetDeviationInPoints(InpSlippage);
     trade.SetTypeFilling(ORDER_FILLING_FOK);
     
+    // Check symbol
+    if(_Symbol != "BTCUSD" && _Symbol != "BTCUSD#")
+    {
+        Print("WARNING: This EA is designed for BTCUSD. Current symbol: ", _Symbol);
+    }
+    
+    // Check timeframe
+    if(_Period != PERIOD_M1)
+    {
+        Print("WARNING: This EA is designed for M1 timeframe. Current timeframe: ", EnumToString(_Period));
+    }
+    
     // Load ONNX model
     // Based on: https://www.mql5.com/en/docs/onnx/onnx_test
     Print("Loading ONNX model from embedded resource...");
@@ -67,7 +79,7 @@ int OnInit()
     {
         int error = GetLastError();
         Print("ERROR: Failed to create ONNX model from resource. Error: ", error);
-        Print("Make sure the model file exists at: MQL5\\Files\\XAUUSD_H1_model.onnx");
+        Print("Make sure the model file exists at: MQL5\\Files\\BTCUSD_M1_model.onnx");
         Print("Then recompile the EA to embed it as a resource.");
         return(INIT_FAILED);
     }
@@ -89,7 +101,6 @@ int OnInit()
         OnnxRelease(onnx_handle);
         return(INIT_FAILED);
     }
-    
     
     // Get model info
     long input_count = OnnxGetInputCount(onnx_handle);
@@ -187,8 +198,6 @@ void OnTick()
         Print("ERROR: Input matrix is empty. Rows: ", input_matrix.Rows(), ", Cols: ", input_matrix.Cols());
         return;
     }
-    
-    Print("Input matrix prepared: Rows=", input_matrix.Rows(), ", Cols=", input_matrix.Cols());
     
     // Run ONNX model - use matrixf and vectorf per MQL5 documentation
     vectorf output_vector(1);
@@ -360,9 +369,6 @@ void OnTick()
 //+------------------------------------------------------------------+
 bool PrepareInputData(float &input_array[])
 {
-    // We need to prepare data similar to training
-    // This is a simplified version - you may need to adjust based on your model
-    
     int lookback = InpLookback;
     int features = 13; // OHLC(4) + volume(1) + RSI(1) + EMA20(1) + EMA50(1) + ATR(1) + price_change(1) + high_low_ratio(1) + volume_ma(1) + volume_ratio(1) = 13
     
@@ -409,7 +415,7 @@ bool PrepareInputData(float &input_array[])
         return false;
     }
     
-    // Calculate indicators (simplified - you may need to match training exactly)
+    // Calculate indicators
     double rsi[], ema20[], ema50[], atr[];
     ArraySetAsSeries(rsi, true);
     ArraySetAsSeries(ema20, true);
@@ -464,26 +470,24 @@ bool PrepareInputData(float &input_array[])
         int count = 0;
         for(int k = j; k < j + 20 && k < ArraySize(volume); k++)
         {
-            sum += (double)volume[k];  // Convert long to double
+            sum += (double)volume[k];
             count++;
         }
-        volume_ma[j] = count > 0 ? sum / count : (double)volume[j];  // Convert long to double
+        volume_ma[j] = count > 0 ? sum / count : (double)volume[j];
     }
     
     // Prepare features - MUST match Python training exactly (13 features)
-    // IMPORTANT: This uses simplified normalization. For best results, implement MinMaxScaler from training.
-    // The scaler is saved as models/XAUUSD_H1_scaler.pkl - you may need to export scaler parameters to MQL5
     int idx = 0;
     for(int i = 0; i < lookback; i++)
     {
-        // Feature 1-4: OHLC (raw values, will be normalized by scaler)
+        // Feature 1-4: OHLC
         input_array[idx++] = (float)open[i];
         input_array[idx++] = (float)high[i];
         input_array[idx++] = (float)low[i];
         input_array[idx++] = (float)close[i];
         
         // Feature 5: Volume (normalized by 1,000,000)
-        input_array[idx++] = (float)((double)volume[i] / 1000000.0);  // Convert long to double first
+        input_array[idx++] = (float)((double)volume[i] / 1000000.0);
         
         // Feature 6: RSI (normalized by 100)
         input_array[idx++] = (float)(rsi[i] / 100.0);
@@ -508,17 +512,9 @@ bool PrepareInputData(float &input_array[])
         input_array[idx++] = (float)(volume_ma[i] / 1000000.0);
         
         // Feature 13: Volume ratio
-        double vol_ratio = volume_ma[i] > 0 ? (double)volume[i] / volume_ma[i] : 1.0;  // Convert long to double
+        double vol_ratio = volume_ma[i] > 0 ? (double)volume[i] / volume_ma[i] : 1.0;
         input_array[idx++] = (float)vol_ratio;
     }
-    
-    // Reshape for model: (1, lookback, features)
-    // ONNX expects shape [1, lookback, features]
-    float reshaped[];
-    ArrayResize(reshaped, 1 * lookback * features);
-    ArrayCopy(reshaped, input_array);
-    
-    ArrayCopy(input_array, reshaped);
     
     return true;
 }
@@ -617,25 +613,8 @@ void ManagePosition(double predicted_price, double price_change_pct)
     if(!PositionSelect(_Symbol))
         return;
     
-    long position_type = PositionGetInteger(POSITION_TYPE);
-    double position_open_price = PositionGetDouble(POSITION_PRICE_OPEN);
-    double current_profit = PositionGetDouble(POSITION_PROFIT);
-    
-    // Simple management: close if prediction reverses
-    if(position_type == POSITION_TYPE_BUY && price_change_pct < -InpPredictionThreshold)
-    {
-        // Prediction turned bearish, close long
-        if(trade.PositionClose(_Symbol))
-        {
-            Print("Closed long position due to bearish prediction");
-        }
-    }
-    else if(position_type == POSITION_TYPE_SELL && price_change_pct > InpPredictionThreshold)
-    {
-        // Prediction turned bullish, close short
-        if(trade.PositionClose(_Symbol))
-        {
-            Print("Closed short position due to bullish prediction");
-        }
-    }
+    // Simple position management - can be enhanced
+    // For now, just log the position status
+    double position_profit = PositionGetDouble(POSITION_PROFIT);
+    Print("Position exists. Profit: ", position_profit, " Predicted change: ", price_change_pct, "%");
 }
