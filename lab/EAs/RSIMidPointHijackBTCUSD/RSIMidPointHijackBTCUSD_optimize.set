@@ -1,0 +1,45 @@
+; RSIFollowReverseEMACross (RSIMidPointHijackBTCUSD\main.mq5) — optimization preset
+; Strategy Tester → Inputs → Load
+; Format: Name=value||start||step||stop||Y|N
+;
+; Timeframe: leave N (ENUM not a linear range). Set manually or duplicate preset per TF.
+; General Settings
+InpTimeframe=16385||16385||0||16385||N
+InpLotSize=0.02||0.02||0.001000||0.100000||N
+InpMagicNumberRSIFollow=1001||1001||1||10010||N
+InpMagicNumberRSIReverse=1002||1002||1||10020||N
+InpMagicNumberEMACross=1003||1003||1||10030||N
+; Strategy Switches
+InpEnableRSIFollow=true||false||0||true||Y
+InpEnableRSIReverse=true||false||0||true||Y
+InpEnableEMACross=true||false||0||true||Y
+InpEnableStrategyLock=false||false||0||true||Y
+InpLockProfitThreshold=0.0||0.0||5.0||200.0||Y
+InpCloseOppositeTrades=false||false||0||true||Y
+; RSI Follow Strategy
+InpRSIPeriod=32||14||2||48||Y
+InpRSIOverbought=78||65||2||88||Y
+InpRSIOversold=46||20||2||50||Y
+InpRSIExitLevel=44||35||1||55||Y
+InpRSIFollowStartHour=23||20||1||23||Y
+InpRSIFollowEndHour=8||4||1||12||Y
+InpRSIFollowCloseOutsideHours=false||false||0||true||Y
+; RSI Reverse Strategy
+InpRSIReversePeriod=59||28||3||80||Y
+InpRSIReverseOverbought=51||48||1||78||Y
+InpRSIReverseOversold=49||20||2||55||Y
+InpRSIReverseCrossLevel=53||45||1||60||Y
+InpRSIReverseExitLevel=48||35||1||55||Y
+InpRSIReverseStartHour=7||0||1||12||Y
+InpRSIReverseEndHour=13||10||1||18||Y
+InpRSIReverseCloseOutsideHours=false||false||0||true||Y
+InpRSIReverseCooldownBars=15||0||3||30||Y
+InpRSIReverseCooldownOnLoss=true||false||0||true||Y
+; EMA Cross Strategy
+InpEMAPeriod=120||60||10||200||Y
+InpEMACrossStartHour=8||0||1||12||Y
+InpEMACrossEndHour=14||12||1||20||Y
+InpEMACrossCloseOutsideHours=true||false||0||true||Y
+InpUseEMADistanceEntry=true||false||0||true||Y
+InpEMADistancePips=160.0||40.0||20.0||400.0||Y
+InpEMADistancePeriod=26||10||2||40||Y

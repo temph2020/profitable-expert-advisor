@@ -259,7 +259,7 @@ bool InitRSIReversalAsian(RSIReversalAsianData& data, string symbol,
    double rsi[];
    ArraySetAsSeries(rsi, true);
    
-   int retryCount = 0;
+   retryCount = 0;
    bool rsiInitialized = false;
    
    while(retryCount < 10 && !rsiInitialized)

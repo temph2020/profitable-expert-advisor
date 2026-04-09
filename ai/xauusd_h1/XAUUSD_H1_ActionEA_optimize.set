@@ -1,0 +1,24 @@
+; XAUUSD_H1_ActionEA — optimization preset (match trained InpLookback to ONNX)
+; Copy to MetaQuotes\Terminal\<ID>\MQL5\Profiles\Tester\
+;
+; Model
+InpLookback=48||32||8||96||Y
+InpEntryMode=1||0||1||1||Y
+InpProbBuy=0.18||0.14||0.02||0.26||Y
+InpProbSell=0.18||0.14||0.02||0.26||Y
+InpMinBeatHold=0.0||0.0||0.01||0.05||Y
+InpExitMode=2||0||1||2||Y
+InpProbCloseL=0.18||0.14||0.02||0.26||Y
+InpProbCloseS=0.18||0.14||0.02||0.26||Y
+InpMinCloseBeatHold=0.0||0.0||0.01||0.04||Y
+; Session
+InpSessionHourOffset=0||-3||1||3||N
+; Scaler
+InpFeatMinStr=
+InpFeatMaxStr=
+; Risk
+InpLotSize=0.01||0.01||0.001000||0.100000||N
+InpMagic=902016||902016||1||9020160||N
+InpSlippage=30||30||1||300||N
+InpMaxAdverseATR=2.0||1.0||0.25||3.5||Y
+InpTakeProfitATR=0.0||0.0||0.25||3.0||Y
