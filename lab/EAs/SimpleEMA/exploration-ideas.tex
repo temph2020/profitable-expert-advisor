@@ -1,0 +1,21 @@
+\section{Simple EMA Price-Action: V1 Exploration Roadmap}
+\label{sec:simple-ema-v1-roadmap}
+
+\textbf{Objective (V1).}
+Establish a robust baseline for the BTCUSD EMA price-action cross strategy before adding complexity. V1 prioritizes stability, explainability, and out-of-sample consistency.
+
+\begin{enumerate}
+  \item \textbf{Baseline calibration}: optimize core parameters ($EMA$ period, minimum candle body, ATR stop/take-profit multipliers) with bounded search ranges and fixed transaction-cost assumptions.
+  \item \textbf{Regime segmentation}: split results by volatility/trend regime (e.g., ATR percentile and ADX bins) to identify where the strategy has structural edge.
+  \item \textbf{Session effects}: evaluate performance across Asia, London, and New York sessions; test session-specific body-size and risk multipliers.
+  \item \textbf{Exit policy comparison}: compare fixed ATR exits vs. trailing stop and partial take-profit exits; report trade duration, payoff skew, and drawdown impact.
+  \item \textbf{Execution stress test}: re-run with adverse spread/slippage scenarios to measure fragility and realistic live-trading degradation.
+  \item \textbf{Position-sizing study}: benchmark fixed lot, volatility targeting, and capped fractional sizing with drawdown constraints.
+  \item \textbf{Signal quality filters}: test wick/body ratio and momentum confirmation to reduce false crosses; quantify precision-recall tradeoff.
+  \item \textbf{Walk-forward validation}: use rolling train-test windows and report parameter drift, out-of-sample Sharpe, and failure periods.
+  \item \textbf{Statistical confidence}: include bootstrap confidence intervals for Sharpe, profit factor, win rate, and max drawdown.
+  \item \textbf{Portfolio contribution}: evaluate correlation-adjusted P\&L contribution when combined with other robots in the united\_dynamic stack.
+\end{enumerate}
+
+\textbf{V1 deliverables.}
+For each experiment, report: net P\&L, Sharpe, Sortino, max drawdown, profit factor, win rate, average trade duration, and out-of-sample performance delta.
