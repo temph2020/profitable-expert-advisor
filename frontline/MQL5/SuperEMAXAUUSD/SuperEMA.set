@@ -1,0 +1,36 @@
+; SuperEMA — defaults aligned with lab/EAs/SuperEMA.mq5 (v1.01)
+; Load from Strategy Tester → Inputs → context menu → Load
+;
+; === Market ===
+InpSymbol=
+InpTimeframe=15||15||0||49153||N
+InpLots=0.01||0.01||0.01||0.10||N
+InpSlippagePoints=55||20||5||120||Y
+InpMagic=940001||940001||1||9400010||N
+; === EMA (trend & structure) ===
+InpEmaFast=40||20||10||120||Y
+InpEmaMid=180||60||15||200||Y
+InpEmaSlow=125||100||25||400||Y
+InpEmaTrendBars=3||1||1||3||Y
+; === CCI ===
+InpCciPeriod=17||7||1||28||Y
+InpCciOverbought=80.0||80.0||10.0||140.0||Y
+InpCciOversold=-140.0||-140.0||10.0||-80.0||Y
+InpPullbackCciLookback=20||4||2||24||Y
+; === MACD (histogram = main - signal) ===
+InpMacdFast=14||8||2||20||Y
+InpMacdSlow=38||20||2||40||Y
+InpMacdSignal=9||5||1||15||Y
+; === Strategy ===
+InpEntryStyle=1||0||1||2||Y
+InpOneTradeOnly=true||false||0||true||N
+InpUseStructuralSL=false||false||0||true||Y
+InpSlBufferPoints=110.0||20.0||10.0||200.0||Y
+; === Exits (so trades do not run forever) ===
+InpExitOnTrendFlip=false||false||0||true||Y
+InpExitOnMacdFlip=false||false||0||true||Y
+InpExitOnCciZeroCross=true||false||0||true||Y
+InpMaxHoldingBars=168||48||24||480||Y
+InpExitBelowMidEma=false||false||0||true||Y
+; === Debug ===
+InpDebugLogs=false||false||0||true||N

@@ -14,7 +14,7 @@
 
 //--- Input Parameters
 input group "=== Trading Settings ==="
-input string InpSymbol = "XAUUSD";                    // Trading Symbol (set was tuned on BTCUSD)
+input string InpSymbol = "XAUUSD";                    // Default gold; same numbers as secret_sauce.set (that file uses BTCUSD as symbol)
 input double InpLotSize = 0.1;                        // Lot Size (Profiles/Tester/secret_sauce.set)
 input int InpMagicNumber = 789012;                   // Magic Number
 input int InpSlippage = 10;                           // Slippage in points

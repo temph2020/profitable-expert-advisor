@@ -1,11 +1,11 @@
 //+------------------------------------------------------------------+
-//|                                                  RSIScalping.mq5 |
+//|                                   RSIScalpingXAUUSD_Trailing.mq5 |
 //|                                  Copyright 2025, MetaQuotes Ltd. |
 //|                                             https://www.mql5.com |
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2025, MetaQuotes Ltd."
 #property link      "https://www.mql5.com"
-#property version   "1.01"
+#property version   "1.06"
 
 #include <Trade\Trade.mqh>
 #include "../_united/MagicNumberHelpers.mqh"
@@ -19,15 +19,23 @@ input double              RSI_Oversold = 57;          // RSI Oversold Level
 input double              RSI_Target_Buy = 80;         // RSI Target for Buy Exit
 input double              RSI_Target_Sell = 57;        // RSI Target for Sell Exit
 input int                 BarsToWait = 4;             // Bars to wait when RSI goes against position
+input bool                UseRSI_StopLoss = true;     // Close on RSI stop (separate timeframe below)
+input ENUM_TIMEFRAMES      RSI_StopLoss_TimeFrame = PERIOD_H1; // RSI timeframe for stop-loss only
+input double              RSI_StopLoss_BuyBelow = 30; // Close buy when stop-timeframe RSI drops below this
+input double              RSI_StopLoss_SellAbove = 70; // Close sell when stop-timeframe RSI rises above this
 input double              LotSize = 0.1;              // Lot Size
-input int                 MagicNumber = 129102315;        // Magic Number
+input int                 MagicNumber = 129102316;        // Magic Number (distinct from non-trailing EA)
 input int                 Slippage = 3;               // Slippage in points
 
 //--- Global variables
 CTrade trade;
 int rsi_handle;
+int rsi_stoploss_handle = INVALID_HANDLE;
 double rsi_buffer[];
+double rsi_stoploss_buffer[];
 double rsi_prev, rsi_current, rsi_two_bars_ago;
+double rsi_stoploss_current = 0.0;
+MqlTick   rsi_stoploss_last_tick;
 bool position_open = false;
 int position_ticket = 0;
 ENUM_POSITION_TYPE current_position_type = POSITION_TYPE_BUY;
@@ -40,21 +48,26 @@ int bars_against_count = 0;
 //+------------------------------------------------------------------+
 int OnInit()
 {
-   // Initialize RSI indicator
    rsi_handle = iRSI(_Symbol, TimeFrame, RSI_Period, RSI_Applied_Price);
    if(rsi_handle == INVALID_HANDLE)
    {
       return(INIT_FAILED);
    }
-   
-   // Initialize trade object
+
+   rsi_stoploss_handle = iRSI(_Symbol, RSI_StopLoss_TimeFrame, RSI_Period, RSI_Applied_Price);
+   if(rsi_stoploss_handle == INVALID_HANDLE)
+   {
+      IndicatorRelease(rsi_handle);
+      return(INIT_FAILED);
+   }
+
    trade.SetExpertMagicNumber(MagicNumber);
    trade.SetDeviationInPoints(Slippage);
    trade.SetTypeFilling(ORDER_FILLING_FOK);
-   
-   // Allocate arrays
+
    ArraySetAsSeries(rsi_buffer, true);
-   
+   ArraySetAsSeries(rsi_stoploss_buffer, true);
+
    return(INIT_SUCCEEDED);
 }
 
@@ -65,6 +78,8 @@ void OnDeinit(const int reason)
 {
    if(rsi_handle != INVALID_HANDLE)
       IndicatorRelease(rsi_handle);
+   if(rsi_stoploss_handle != INVALID_HANDLE)
+      IndicatorRelease(rsi_stoploss_handle);
 }
 
 //+------------------------------------------------------------------+
@@ -72,33 +87,40 @@ void OnDeinit(const int reason)
 //+------------------------------------------------------------------+
 void OnTick()
 {
-   // Check if we have enough bars
-   if(Bars(_Symbol, TimeFrame) < RSI_Period + 2)
+   ResyncPositionFromMarket();
+
+   const int min_bars = RSI_Period + 2;
+   if(position_open)
+   {
+      if(UseRSI_StopLoss && Bars(_Symbol, RSI_StopLoss_TimeFrame) >= min_bars)
+      {
+         if(UpdateRSI_StopLoss())
+            CheckRSIStopLossClose();
+      }
+   }
+
+   if(Bars(_Symbol, TimeFrame) < min_bars)
    {
       return;
    }
-      
-   // Check if this is a new bar
+
    datetime current_bar_time = iTime(_Symbol, TimeFrame, 0);
    if(current_bar_time == last_bar_time)
    {
-      return;  // Still the same bar, don't process
+      return;
    }
-      
+
    last_bar_time = current_bar_time;
-   
-   // Update RSI values
+
    if(!UpdateRSI())
    {
       return;
    }
 
    ResyncPositionFromMarket();
-   
-   // Check for existing position
+
    CheckExistingPosition();
-   
-   // Check for new entry signals (also verify no position exists with our magic number)
+
    if(!position_open && !PositionExistsByMagic(_Symbol, MagicNumber))
    {
       CheckEntrySignals();
@@ -114,11 +136,32 @@ bool UpdateRSI()
    {
       return false;
    }
-   
-   rsi_current = rsi_buffer[0];  // Current bar
-   rsi_prev = rsi_buffer[1];     // Previous bar
-   rsi_two_bars_ago = rsi_buffer[2];  // Two bars ago
-   
+
+   rsi_current = rsi_buffer[0];
+   rsi_prev = rsi_buffer[1];
+   rsi_two_bars_ago = rsi_buffer[2];
+
+   return true;
+}
+
+//+------------------------------------------------------------------+
+//| Stop-loss RSI (RSI_StopLoss_TimeFrame)                           |
+//| Uses latest MqlTick before CopyBuffer so RSI matches current quote. |
+//+------------------------------------------------------------------+
+bool UpdateRSI_StopLoss()
+{
+   if(rsi_stoploss_handle == INVALID_HANDLE)
+      return false;
+   if(!SymbolInfoTick(_Symbol, rsi_stoploss_last_tick))
+      return false;
+
+   int calc = BarsCalculated(rsi_stoploss_handle);
+   if(calc <= 0)
+      return false;
+
+   if(CopyBuffer(rsi_stoploss_handle, 0, 0, 1, rsi_stoploss_buffer) < 1)
+      return false;
+   rsi_stoploss_current = rsi_stoploss_buffer[0];
    return true;
 }
 
@@ -135,16 +178,13 @@ void ResyncPositionFromMarket()
 }
 
 //+------------------------------------------------------------------+
-//| Check existing position for exit conditions                     |
+//| RSI-based stop: RSI_StopLoss_TimeFrame series (independent of TimeFrame) |
 //+------------------------------------------------------------------+
-void CheckExistingPosition()
+void CheckRSIStopLossClose()
 {
-   if(!position_open)
-   {
+   if(!UseRSI_StopLoss || !position_open)
       return;
-   }
-   
-   // Check if position still exists with correct magic number
+
    if(!PositionSelectByTicketAndMagic(position_ticket, MagicNumber))
    {
       position_open = false;
@@ -153,11 +193,40 @@ void CheckExistingPosition()
       bars_against_count = 0;
       return;
    }
-   
-   // Exit conditions based on RSI target
+
    if(current_position_type == POSITION_TYPE_BUY)
    {
-      // Check if RSI is against the position (below oversold)
+      if(rsi_stoploss_current < RSI_StopLoss_BuyBelow)
+         ClosePosition();
+   }
+   else if(current_position_type == POSITION_TYPE_SELL)
+   {
+      if(rsi_stoploss_current > RSI_StopLoss_SellAbove)
+         ClosePosition();
+   }
+}
+
+//+------------------------------------------------------------------+
+//| Check existing position for exit conditions                     |
+//+------------------------------------------------------------------+
+void CheckExistingPosition()
+{
+   if(!position_open)
+   {
+      return;
+   }
+
+   if(!PositionSelectByTicketAndMagic(position_ticket, MagicNumber))
+   {
+      position_open = false;
+      position_ticket = 0;
+      rsi_against_position = false;
+      bars_against_count = 0;
+      return;
+   }
+
+   if(current_position_type == POSITION_TYPE_BUY)
+   {
       if(rsi_current < RSI_Oversold)
       {
          if(!rsi_against_position)
@@ -169,8 +238,7 @@ void CheckExistingPosition()
          {
             bars_against_count++;
          }
-         
-         // Close position if RSI has been against for Y bars
+
          if(bars_against_count >= BarsToWait)
          {
             ClosePosition();
@@ -179,14 +247,12 @@ void CheckExistingPosition()
       }
       else
       {
-         // RSI is no longer against the position, reset counter
          if(rsi_against_position)
          {
             rsi_against_position = false;
             bars_against_count = 0;
          }
-         
-         // Exit long position when RSI reaches buy target
+
          if(rsi_current >= RSI_Target_Buy)
          {
             ClosePosition();
@@ -195,7 +261,6 @@ void CheckExistingPosition()
    }
    else if(current_position_type == POSITION_TYPE_SELL)
    {
-      // Check if RSI is against the position (above overbought)
       if(rsi_current > RSI_Overbought)
       {
          if(!rsi_against_position)
@@ -207,8 +272,7 @@ void CheckExistingPosition()
          {
             bars_against_count++;
          }
-         
-         // Close position if RSI has been against for Y bars
+
          if(bars_against_count >= BarsToWait)
          {
             ClosePosition();
@@ -217,14 +281,12 @@ void CheckExistingPosition()
       }
       else
       {
-         // RSI is no longer against the position, reset counter
          if(rsi_against_position)
          {
             rsi_against_position = false;
             bars_against_count = 0;
          }
-         
-         // Exit short position when RSI reaches sell target
+
          if(rsi_current <= RSI_Target_Sell)
          {
             ClosePosition();
@@ -238,17 +300,11 @@ void CheckExistingPosition()
 //+------------------------------------------------------------------+
 void CheckEntrySignals()
 {
-   // Buy signal: RSI crosses from oversold to above oversold (checking the actual crossover)
    if(rsi_two_bars_ago <= RSI_Oversold && rsi_prev > RSI_Oversold)
-   {
       OpenBuyPosition();
-   }
-   
-   // Sell signal: RSI crosses from overbought to below overbought (checking the actual crossover)
+
    if(rsi_two_bars_ago >= RSI_Overbought && rsi_prev < RSI_Overbought)
-   {
       OpenSellPosition();
-   }
 }
 
 //+------------------------------------------------------------------+
@@ -257,10 +313,12 @@ void CheckEntrySignals()
 void OpenBuyPosition()
 {
    double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
-   
+
    if(trade.Buy(LotSize, _Symbol, ask, 0, 0, "RSI Scalping Buy"))
    {
-      position_ticket = trade.ResultOrder();
+      ulong t = GetPositionTicketByMagic(_Symbol, (ulong)MagicNumber);
+      if(t != 0)
+         position_ticket = (int)t;
       position_open = true;
       current_position_type = POSITION_TYPE_BUY;
    }
@@ -272,10 +330,12 @@ void OpenBuyPosition()
 void OpenSellPosition()
 {
    double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
-   
+
    if(trade.Sell(LotSize, _Symbol, bid, 0, 0, "RSI Scalping Sell"))
    {
-      position_ticket = trade.ResultOrder();
+      ulong t = GetPositionTicketByMagic(_Symbol, (ulong)MagicNumber);
+      if(t != 0)
+         position_ticket = (int)t;
       position_open = true;
       current_position_type = POSITION_TYPE_SELL;
    }
