@@ -1,0 +1,21 @@
+; EMASlopeDistanceCocktailBTCUSD\main.mq5 — fixed inputs (same as desktop ultimate.set)
+; Attach EA to BTCUSD chart. Timeframe 16385 = H1.
+;
+EMA_Periode=50||50||1||500||N
+PreisSchwelle=700.0||700.0||70.000000||7000.000000||N
+SteigungSchwelle=25.0||25.0||2.500000||250.000000||N
+ÜberwachungTimeout=340||340||1||3400||N
+TrailingStop=370.0||370.0||37.000000||3700.000000||N
+LotGröße=0.07||0.07||0.007000||0.700000||N
+MagicNumber=135790||135790||1||1357900||N
+UseSpreadAdjustment=true||false||0||true||N
+Timeframe=16385||0||0||49153||N
+UseBarData=true||false||0||true||N
+MaxTradesPerCrossover=10||10||1||100||N
+ProfitCheckBars=15||15||1||150||N
+CloseUnprofitableTrades=true||false||0||true||N
+UseWeeklyADXFilter=true||false||0||true||N
+WeeklyADXPeriod=15||15||1||150||N
+WeeklyADXMin=40.0||40.0||4.000000||400.000000||N
+WeeklyADXBarShift=2||2||1||20||N
+WeeklyADXUseDirection=true||false||0||true||N

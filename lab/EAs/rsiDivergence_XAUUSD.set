@@ -1,0 +1,29 @@
+; rsiDivergence.mq5 — XAUUSD test / optimization preset
+; Strategy Tester → Inputs → Load. If your server lists "XAU" not "XAUUSD", change InpSymbol only.
+;
+; value||start||step||stop||Y|N  (MT5 convention)
+; InpTf: 0 = chart timeframe (PERIOD_CURRENT). Attach EA to XAUUSD chart at desired TF (e.g. H1).
+;
+; === Market ===
+InpSymbol=XAUUSD
+InpTf=0||0||0||49153||N
+InpLots=0.01||0.01||0.01||0.20||N
+InpMagic=930204||930204||1||9302040||N
+InpSlippagePts=80||30||10||400||N
+InpMaxPositions=1||1||1||4||N
+InpRequireFlat=true||false||0||true||N
+; === Indicators ===
+InpRsiPeriod=14||7||1||28||Y
+InpEmaPeriod=200||50||10||400||Y
+; === Swing / divergence ===
+InpPivotRadius=2||2||1||8||N
+InpSwingLookback=120||60||10||300||Y
+InpMinPivotGap=3||2||1||15||Y
+; === EMA distance (entry filter) — gold: wider point ranges than FX ===
+InpMinEmaDistPtsBuy=200.0||50.0||25.0||2500.0||Y
+InpMinEmaDistPtsSell=200.0||50.0||25.0||2500.0||Y
+; === Risk ===
+InpUseSLTP=true||false||0||true||N
+InpSLPts=800.0||300.0||50.0||5000.0||Y
+InpTPPts=1600.0||500.0||100.0||10000.0||Y
+InpMaxHoldBars=48||0||8||240||Y
