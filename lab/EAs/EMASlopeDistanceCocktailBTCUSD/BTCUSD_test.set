@@ -1,0 +1,24 @@
+; EMASlopeDistanceCocktailBTCUSD\main.mq5 — BTCUSD Strategy Tester preset
+; Load: Tester → Inputs → context menu → Load. Attach EA to BTCUSD chart (EA uses _Symbol).
+;
+; value||start||step||stop||Y|N  (MT5 convention). Timeframe 16385 = H1.
+; Tune PreisSchwelle / TrailingStop / SteigungSchwelle to your broker's _Point for BTC.
+;
+EMA_Periode=50||30||5||200||Y
+PreisSchwelle=700.0||200.0||50.0||5000.0||Y
+SteigungSchwelle=25.0||5.0||1.0||80.0||Y
+ÜberwachungTimeout=340||60||20||900||Y
+TrailingStop=370.0||150.0||20.0||5000.0||Y
+LotGröße=0.07||0.01||0.01||0.50||N
+MagicNumber=135790||135790||1||1357900||N
+UseSpreadAdjustment=true||false||0||true||Y
+Timeframe=16385||0||0||49153||N
+UseBarData=true||false||0||true||N
+MaxTradesPerCrossover=10||1||1||25||Y
+ProfitCheckBars=15||5||1||60||Y
+CloseUnprofitableTrades=true||false||0||true||Y
+UseWeeklyADXFilter=true||false||0||true||Y
+WeeklyADXPeriod=15||7||1||28||Y
+WeeklyADXMin=40.0||15.0||2.0||55.0||Y
+WeeklyADXBarShift=2||1||1||5||Y
+WeeklyADXUseDirection=true||false||0||true||Y
