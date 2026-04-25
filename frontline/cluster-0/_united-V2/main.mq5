@@ -22,6 +22,7 @@
 #include "Strategies/SuperEMAStrategy.mqh"
 #include "Strategies/RSIReversalAsianStrategy.mqh"
 #include "Strategies/RSIConsolidationStrategy.mqh"
+#include "Strategies/SimpleTrendlineStrategy.mqh"
 
 //+------------------------------------------------------------------+
 //| Global Lot Size Variables (for dynamic lot sizing)               |
@@ -54,6 +55,8 @@ input bool EnableSuperEMA = true;
 input bool EnableRSIConsolidation = true;
 input bool EnableRSIReversalAsianEURUSD = true;
 input bool EnableRSIReversalAsianAUDUSD = true;
+input bool EnableSimpleTrendlineBTCUSD = true;
+input bool EnableSimpleTrendlineXAUUSD = true;
 
 input group "=== Centralized Lot Size (Granular Per Robot) ==="
 input double LOT_ES_EMASlopeDistance = 0.05;
@@ -68,6 +71,8 @@ input double LOT_RRA_EURUSD = 0.01;
 input double LOT_RRA_AUDUSD = 0.10;
 input double LOT_SE_SuperEMA = 0.01;
 input double LOT_RCO_RSIConsolidation = 0.04;
+input double LOT_ST_BTCUSD = 0.19;
+input double LOT_ST_XAUUSD = 0.02;
 
 //+------------------------------------------------------------------+
 //| Strategy 1: DarvasBoxXAUUSD                                      |
@@ -385,6 +390,32 @@ input ulong               RCO_MagicNumber = 20250420;
 input int                 RCO_Slippage = 10;
 input int                 RCO_MaxSpreadPoints = 28;
 
+input group "=== SimpleTrendline BTCUSD ==="
+input string              ST_BTC_Symbol = "BTCUSD";
+input ENUM_TIMEFRAMES     ST_BTC_SignalTF = PERIOD_H1;
+input ENUM_TIMEFRAMES     ST_BTC_HigherTF = PERIOD_H4;
+input int                 ST_BTC_MAPeriod = 150;
+input ENUM_MA_METHOD      ST_BTC_MAMethod = MODE_SMMA;
+input ENUM_APPLIED_PRICE  ST_BTC_AppliedPrice = PRICE_OPEN;
+input int                 ST_BTC_HTFBarsToScan = 1200;
+input double              ST_BTC_LineTouchTolerance = 170.0;
+input double              ST_BTC_BreakBuffer = 90.0;
+input ulong               ST_BTC_MagicNumber = 26042501;
+input bool                ST_BTC_DrawTrendline = true;
+
+input group "=== SimpleTrendline XAUUSD ==="
+input string              ST_XAU_Symbol = "XAUUSD";
+input ENUM_TIMEFRAMES     ST_XAU_SignalTF = PERIOD_H1;
+input ENUM_TIMEFRAMES     ST_XAU_HigherTF = PERIOD_M10;
+input int                 ST_XAU_MAPeriod = 65;
+input ENUM_MA_METHOD      ST_XAU_MAMethod = MODE_EMA;
+input ENUM_APPLIED_PRICE  ST_XAU_AppliedPrice = PRICE_OPEN;
+input int                 ST_XAU_HTFBarsToScan = 500;
+input double              ST_XAU_LineTouchTolerance = 220.0;
+input double              ST_XAU_BreakBuffer = 110.0;
+input ulong               ST_XAU_MagicNumber = 26042503;
+input bool                ST_XAU_DrawTrendline = true;
+
 //+------------------------------------------------------------------+
 //| Global Variables - DarvasBox                                      |
 //+------------------------------------------------------------------+
@@ -483,6 +514,8 @@ RSIScalpingData rsTSLAData;
 RSIScalpingData rsXAUUSDData;
 SuperEMAData seData;
 RSIConsolidationData rcoData;
+SimpleTrendlineData stBTCData;
+SimpleTrendlineData stXAUData;
 
 //+------------------------------------------------------------------+
 //| Global Variables - RSI Reversal Asian                            |
@@ -570,6 +603,18 @@ int OnInit()
                                RRA_AUDUSD_UseTakeProfit, RRA_AUDUSD_UseRSIExit, RRA_AUDUSD_RSIExitLevel,
                                RRA_AUDUSD_CloseOutsideSession, RRA_AUDUSD_TimeFrame, RRA_AUDUSD_MagicNumber, RRA_AUDUSD_Slippage))
          Print("Warning: RSIReversalAsianAUDUSD strategy failed to initialize for symbol '", RRA_AUDUSD_Symbol, "'");
+
+   if(EnableSimpleTrendlineBTCUSD)
+      if(!InitSimpleTrendline(stBTCData, ST_BTC_Symbol, ST_BTC_SignalTF, ST_BTC_HigherTF, ST_BTC_MAPeriod,
+                              ST_BTC_MAMethod, ST_BTC_AppliedPrice, ST_BTC_HTFBarsToScan,
+                              ST_BTC_LineTouchTolerance, ST_BTC_BreakBuffer, ST_BTC_MagicNumber, ST_BTC_DrawTrendline))
+         Print("Warning: SimpleTrendlineBTCUSD failed to initialize for symbol '", ST_BTC_Symbol, "'");
+
+   if(EnableSimpleTrendlineXAUUSD)
+      if(!InitSimpleTrendline(stXAUData, ST_XAU_Symbol, ST_XAU_SignalTF, ST_XAU_HigherTF, ST_XAU_MAPeriod,
+                              ST_XAU_MAMethod, ST_XAU_AppliedPrice, ST_XAU_HTFBarsToScan,
+                              ST_XAU_LineTouchTolerance, ST_XAU_BreakBuffer, ST_XAU_MagicNumber, ST_XAU_DrawTrendline))
+         Print("Warning: SimpleTrendlineXAUUSD failed to initialize for symbol '", ST_XAU_Symbol, "'");
    
    Print("United EA initialized. Active strategies: ", 
          (EnableDarvasBox ? "DarvasBox " : ""),
@@ -584,7 +629,9 @@ int OnInit()
          (EnableSuperEMA ? "SuperEMA " : ""),
          (EnableRSIConsolidation ? "RSIConsolidation " : ""),
          (EnableRSIReversalAsianEURUSD ? "RSIReversalAsianEURUSD " : ""),
-         (EnableRSIReversalAsianAUDUSD ? "RSIReversalAsianAUDUSD " : ""));
+         (EnableRSIReversalAsianAUDUSD ? "RSIReversalAsianAUDUSD " : ""),
+         (EnableSimpleTrendlineBTCUSD ? "SimpleTrendlineBTCUSD " : ""),
+         (EnableSimpleTrendlineXAUUSD ? "SimpleTrendlineXAUUSD " : ""));
    
    return initResult;
 }
@@ -632,6 +679,11 @@ void OnDeinit(const int reason)
    
    if(EnableRSIReversalAsianAUDUSD)
       DeinitRSIReversalAsian(rraAUDUSDData);
+
+   if(EnableSimpleTrendlineBTCUSD)
+      DeinitSimpleTrendline(stBTCData);
+   if(EnableSimpleTrendlineXAUUSD)
+      DeinitSimpleTrendline(stXAUData);
    
    Print("United EA deinitialized. Reason: ", reason);
 }
@@ -699,6 +751,11 @@ void OnTick()
 
    if(EnableRSIConsolidation)
       ProcessRSIConsolidation(rcoData, LOT_RCO_RSIConsolidation);
+
+   if(EnableSimpleTrendlineBTCUSD)
+      ProcessSimpleTrendline(stBTCData, LOT_ST_BTCUSD);
+   if(EnableSimpleTrendlineXAUUSD)
+      ProcessSimpleTrendline(stXAUData, LOT_ST_XAUUSD);
 }
 
 //+------------------------------------------------------------------+
