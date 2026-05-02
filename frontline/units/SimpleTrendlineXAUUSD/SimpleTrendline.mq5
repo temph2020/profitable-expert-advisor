@@ -13,12 +13,15 @@ input double          InpBreakBuffer        = 110;         // Break confirmation
 input double          InpLots               = 0.10;        // Position size
 input long            InpMagic              = 26042501;    // Magic number
 input bool            InpDrawTrendline      = true;        // Draw detected trendline
+input bool            InpUseSessionModeGate = true;        // Block entries when symbol/session disallow opens
+input bool            InpBypassGateInTester = true;        // Ignore gate in Strategy Tester for optimization
 
 CTrade trade;
 
 int      g_maHandle = INVALID_HANDLE;
 datetime g_lastBarTime = 0;
 string   g_lineName = "SimpleTrendline_Basis";
+datetime g_lastEntryBlockLog = 0;
 
 struct TrendlineModel
 {
@@ -180,6 +183,75 @@ bool GetCurrentPosition(long &type, double &volume)
    return true;
 }
 
+bool IsWithinAnyTradeSession(const datetime nowServer)
+{
+   MqlDateTime dt;
+   TimeToStruct(nowServer, dt);
+   ENUM_DAY_OF_WEEK day = (ENUM_DAY_OF_WEEK)dt.day_of_week;
+   int nowSec = dt.hour * 3600 + dt.min * 60 + dt.sec;
+
+   datetime from = 0;
+   datetime to = 0;
+   bool hasAny = false;
+   for(uint idx = 0; idx < 16; idx++)
+   {
+      if(!SymbolInfoSessionTrade(_Symbol, day, idx, from, to))
+         break;
+      hasAny = true;
+      // SymbolInfoSessionTrade returns session boundaries as time-of-day values.
+      MqlDateTime fdt, tdt;
+      TimeToStruct(from, fdt);
+      TimeToStruct(to, tdt);
+      int fromSec = fdt.hour * 3600 + fdt.min * 60 + fdt.sec;
+      int toSec   = tdt.hour * 3600 + tdt.min * 60 + tdt.sec;
+
+      // from==to on some brokers means full-day session.
+      if(fromSec == toSec)
+      {
+         return true;
+      }
+      else if(fromSec < toSec)
+      {
+         if(nowSec >= fromSec && nowSec <= toSec)
+            return true;
+      }
+      else
+      {
+         // Session passes midnight.
+         if(nowSec >= fromSec || nowSec <= toSec)
+            return true;
+      }
+   }
+   // If broker does not expose sessions for this symbol, do not block by session.
+   if(!hasAny)
+      return true;
+   return false;
+}
+
+bool CanOpenNewPositionNow(const ENUM_ORDER_TYPE orderType)
+{
+   if(!InpUseSessionModeGate)
+      return true;
+   if(InpBypassGateInTester && (bool)MQLInfoInteger(MQL_TESTER))
+      return true;
+
+   long tradeMode = SymbolInfoInteger(_Symbol, SYMBOL_TRADE_MODE);
+   if(tradeMode == SYMBOL_TRADE_MODE_DISABLED ||
+      tradeMode == SYMBOL_TRADE_MODE_CLOSEONLY)
+      return false;
+   if(orderType == ORDER_TYPE_BUY &&
+      tradeMode == SYMBOL_TRADE_MODE_SHORTONLY)
+      return false;
+   if(orderType == ORDER_TYPE_SELL &&
+      tradeMode == SYMBOL_TRADE_MODE_LONGONLY)
+      return false;
+
+   if(!IsWithinAnyTradeSession(TimeCurrent()))
+      return false;
+
+   return true;
+}
+
 void TryExitOnBreak(const TrendlineModel &m)
 {
    long posType;
@@ -234,6 +306,16 @@ void TryPullbackEntry(const TrendlineModel &m)
       bool stillHealthy = (b2.close >= TrendlinePriceAtTime(m, b2.time) - tol);
       if(touched && reclaim && bullish && stillHealthy)
       {
+         if(!CanOpenNewPositionNow(ORDER_TYPE_BUY))
+         {
+            datetime nowBar = iTime(_Symbol, _Period, 0);
+            if(nowBar != g_lastEntryBlockLog)
+            {
+               g_lastEntryBlockLog = nowBar;
+               Print("Buy entry skipped: symbol mode/session does not allow opening now");
+            }
+            return;
+         }
          trade.Buy(InpLots, _Symbol, 0.0, 0.0, 0.0, "Pullback buy");
       }
    }
@@ -245,6 +327,16 @@ void TryPullbackEntry(const TrendlineModel &m)
       bool stillWeak = (b2.close <= TrendlinePriceAtTime(m, b2.time) + tol);
       if(touched && reject && bearish && stillWeak)
       {
+         if(!CanOpenNewPositionNow(ORDER_TYPE_SELL))
+         {
+            datetime nowBar = iTime(_Symbol, _Period, 0);
+            if(nowBar != g_lastEntryBlockLog)
+            {
+               g_lastEntryBlockLog = nowBar;
+               Print("Sell entry skipped: symbol mode/session does not allow opening now");
+            }
+            return;
+         }
          trade.Sell(InpLots, _Symbol, 0.0, 0.0, 0.0, "Pullback sell");
       }
    }

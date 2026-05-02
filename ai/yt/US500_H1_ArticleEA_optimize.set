@@ -1,0 +1,24 @@
+; US500_H1_ArticleEA — genetic / slow optimization preset
+; InpLookback fixed at 48 (must match embedded ONNX). Copy to MQL5\Profiles\Tester\
+;
+; Model
+InpLookback=48||48||1||48||N
+InpEntryMode=1||0||1||1||Y
+InpProbBuy=0.18||0.12||0.02||0.28||Y
+InpProbSell=0.18||0.12||0.02||0.28||Y
+InpMinBeatHold=0.04||0.0||0.01||0.10||Y
+InpExitMode=2||0||1||2||Y
+InpProbCloseL=0.18||0.12||0.02||0.28||Y
+InpProbCloseS=0.18||0.12||0.02||0.28||Y
+InpMinCloseBeatHold=0.03||0.0||0.01||0.08||Y
+; Session (match Python SESSION_HOUR_OFFSET)
+InpSessionHourOffset=0||-2||1||2||N
+; Scaler override (leave empty unless you paste new train bounds)
+InpFeatMinStr=
+InpFeatMaxStr=
+; Risk
+InpLotSize=0.01||0.01||0.01||0.10||N
+InpMagic=902503||902503||1||902503||N
+InpSlippage=30||30||1||300||N
+InpMaxAdverseATR=2.0||1.0||0.25||3.5||Y
+InpTakeProfitATR=0.0||0.0||0.25||3.0||Y

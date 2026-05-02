@@ -1,0 +1,20 @@
+; saved on 2026.05.01
+; Same optimization ranges/flags as 123.set (Desktop); baseline matches main.mq5 defaults
+; Strategy Tester: Inputs tab -> Load
+;
+TimeFrame=15||15||15||16385||N
+RSI_Period=8||1||5||21||N
+RSI_Applied_Price=1||0||1||1||N
+RSI_Overbought=36||1.0||20.0||45.0||N
+RSI_Oversold=38||1.0||25.0||48.0||N
+RSI_Target_Buy=90||1.0||70.0||95.0||N
+RSI_Target_Sell=70||1.0||15.0||80.0||N
+BarsToWait=11||1||2||12||Y
+BarsToWait_Early=3||1||1||6||Y
+RSI_Confirm_Buy=49||1.0||48.0||72.0||Y
+RSI_Confirm_Sell=29||1.0||28.0||55.0||Y
+MaxBars_Unconfirmed=1||1||4||40||Y
+StopLoss_Points=0||5.0||0.500000||50.000000||N
+LotSize=20||5.0||1.0||100.0||N
+MagicNumber=12345||0||12345||12345||N
+Slippage=3||0||3||3||N
