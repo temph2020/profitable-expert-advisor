@@ -1,0 +1,36 @@
+; saved on 2026.05.01
+; Genetic optimization — EMASlopeDistanceCocktailXAUUSD (main.mq5)
+; Baseline aligned with Desktop 123.set; Strategy Tester -> Inputs -> Load
+;
+; Format: Parameter=Start||Step||Min||Max||Optimize(Y/N)
+;
+
+; === Session / identity (usually fixed) ===
+MagicNumber=12350||0||12350||12350||N
+Timeframe=16385||0||16385||16385||N
+
+; === Core signal thresholds (123.set starts) ===
+EMA_Periode=46||2||10||120||Y
+PreisSchwelle=600.0||25.0||200.0||1200.0||Y
+SteigungSchwelle=80.0||5.0||15.0||200.0||Y
+ÜberwachungTimeout=800||20||120||2400||Y
+
+; === Trade management ===
+TrailingStop=260.0||50.0||5.0||500.0||Y
+LotGröße=0.03||0.01||0.01||0.30||N
+
+; === Behaviour toggles (fixed unless you want regime tests) ===
+UseSpreadAdjustment=true||false||0||true||N
+UseBarData=true||false||0||true||N
+CloseUnprofitableTrades=true||false||0||true||N
+
+; === Crossover / profit logic (123.set flags) ===
+MaxTradesPerCrossover=9||1||1||15||Y
+ProfitCheckBars=12||1||1||18||Y
+
+; === Weekly ADX filter ===
+UseWeeklyADXFilter=true||false||0||true||N
+WeeklyADXPeriod=15||1||7||28||Y
+WeeklyADXMin=40.0||2.0||15.0||55.0||Y
+WeeklyADXBarShift=2||1||1||5||N
+WeeklyADXUseDirection=true||false||0||true||N

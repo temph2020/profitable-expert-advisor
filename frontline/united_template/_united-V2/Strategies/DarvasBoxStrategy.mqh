@@ -1,6 +1,12 @@
 //+------------------------------------------------------------------+
 //|                                          DarvasBoxStrategy.mqh   |
 //+------------------------------------------------------------------+
+#if defined(CLUSTER0_ORCHESTRATOR) || defined(UNITED_V2_DYNAMIC_LOTS)
+extern double g_DB_LotSize;
+#define DARVAS_TRADE_LOT (g_DB_LotSize)
+#else
+#define DARVAS_TRADE_LOT 0.01
+#endif
 
 bool InitDarvasBox(string symbol)
 {
@@ -195,9 +201,9 @@ bool PlaceOrder(ENUM_ORDER_TYPE orderType, double price, double sl, double tp)
    // Use market price (0) instead of explicit price - this ensures market order execution
    // In backtesting, explicit price might fail if price has moved
    if(orderType == ORDER_TYPE_BUY)
-      result = dbData.trade.Buy(0.01, dbData.symbol, 0, sl, tp, "Darvas Box Breakout");
+      result = dbData.trade.Buy(DARVAS_TRADE_LOT, dbData.symbol, 0, sl, tp, "Darvas Box Breakout");
    else
-      result = dbData.trade.Sell(0.01, dbData.symbol, 0, sl, tp, "Darvas Box Breakdown");
+      result = dbData.trade.Sell(DARVAS_TRADE_LOT, dbData.symbol, 0, sl, tp, "Darvas Box Breakdown");
    
    // Always log errors, success only if logging enabled
    if(result)

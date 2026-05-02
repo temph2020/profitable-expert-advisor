@@ -5,14 +5,17 @@
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2025, MetaQuotes Ltd."
 #property link      "https://www.mql5.com"
-#property version   "1.00"
+#property version   "1.10"
 #property strict
+#property description "LOT_* nominal at ORCH_ReferenceBalance; scale = balance/equity ÷ reference (clamped). No performance-evaluator ranking."
 
 #include <Trade\Trade.mqh>
 #include <Trade\PositionInfo.mqh>
 #include <Indicators\Trend.mqh>
 #include <Indicators\Volumes.mqh>
 #include "MagicNumberHelpers.mqh"
+#define UNITED_V2_DYNAMIC_LOTS
+double               g_DB_LotSize;
 // Include strategy implementations early so structs are available
 #include "Strategies/DarvasBoxStrategy.mqh"
 #include "Strategies/EMASlopeDistanceStrategy.mqh"
@@ -22,6 +25,7 @@
 #include "Strategies/SuperEMAStrategy.mqh"
 #include "Strategies/RSIReversalAsianStrategy.mqh"
 #include "Strategies/RSIConsolidationStrategy.mqh"
+#include "Strategies/SimpleTrendlineStrategy.mqh"
 
 //+------------------------------------------------------------------+
 //| Global Lot Size Variables (for dynamic lot sizing)               |
@@ -29,6 +33,18 @@
 double g_ES_LotSize;  // EMA Slope Distance lot size
 double g_RC_LotSize;  // RSI CrossOver Reversal lot size
 double g_RM_LotSize;  // RSI MidPoint Hijack lot size
+
+double g_Pos_RS_APPL;
+double g_Pos_RS_BTCUSD;
+double g_Pos_RS_NVDA;
+double g_Pos_RS_TSLA;
+double g_Pos_RS_XAUUSD;
+double g_Pos_RRA_EURUSD;
+double g_Pos_RRA_AUDUSD;
+double g_Pos_SE;
+double g_Pos_RCO;
+double g_Pos_ST_BTCUSD;
+double g_Pos_ST_XAUUSD;
 
 bool United_MayOpenNewEntry(const string symbol, const ulong magic, const bool isBuy)
 {
@@ -54,8 +70,11 @@ input bool EnableSuperEMA = true;
 input bool EnableRSIConsolidation = true;
 input bool EnableRSIReversalAsianEURUSD = true;
 input bool EnableRSIReversalAsianAUDUSD = true;
+input bool EnableSimpleTrendlineBTCUSD = true;
+input bool EnableSimpleTrendlineXAUUSD = true;
 
 input group "=== Centralized Lot Size (Granular Per Robot) ==="
+input double LOT_DB_DarvasBox = 0.01;
 input double LOT_ES_EMASlopeDistance = 0.05;
 input double LOT_RC_RSICrossOver = 0.1;
 input double LOT_RM_RSIMidPointHijack = 0.01;
@@ -68,6 +87,15 @@ input double LOT_RRA_EURUSD = 0.01;
 input double LOT_RRA_AUDUSD = 0.10;
 input double LOT_SE_SuperEMA = 0.01;
 input double LOT_RCO_RSIConsolidation = 0.04;
+input double LOT_ST_BTCUSD = 0.19;
+input double LOT_ST_XAUUSD = 0.02;
+
+input group "=== Balance-based position sizing ==="
+input bool   ORCH_ScaleLotsByBalance = true;
+input bool   ORCH_UseEquityInsteadOfBalance = false;
+input double ORCH_ReferenceBalance = 10000.0;
+input double ORCH_MinBalanceScale = 0.1;
+input double ORCH_MaxBalanceScale = 10.0;
 
 //+------------------------------------------------------------------+
 //| Strategy 1: DarvasBoxXAUUSD                                      |
@@ -385,6 +413,75 @@ input ulong               RCO_MagicNumber = 20250420;
 input int                 RCO_Slippage = 10;
 input int                 RCO_MaxSpreadPoints = 28;
 
+input group "=== SimpleTrendline BTCUSD ==="
+input string              ST_BTC_Symbol = "BTCUSD";
+input ENUM_TIMEFRAMES     ST_BTC_SignalTF = PERIOD_H1;
+input ENUM_TIMEFRAMES     ST_BTC_HigherTF = PERIOD_H4;
+input int                 ST_BTC_MAPeriod = 150;
+input ENUM_MA_METHOD      ST_BTC_MAMethod = MODE_SMMA;
+input ENUM_APPLIED_PRICE  ST_BTC_AppliedPrice = PRICE_OPEN;
+input int                 ST_BTC_HTFBarsToScan = 1200;
+input double              ST_BTC_LineTouchTolerance = 170.0;
+input double              ST_BTC_BreakBuffer = 90.0;
+input ulong               ST_BTC_MagicNumber = 26042501;
+input bool                ST_BTC_DrawTrendline = true;
+
+input group "=== SimpleTrendline XAUUSD ==="
+input string              ST_XAU_Symbol = "XAUUSD";
+input ENUM_TIMEFRAMES     ST_XAU_SignalTF = PERIOD_H1;
+input ENUM_TIMEFRAMES     ST_XAU_HigherTF = PERIOD_M10;
+input int                 ST_XAU_MAPeriod = 65;
+input ENUM_MA_METHOD      ST_XAU_MAMethod = MODE_EMA;
+input ENUM_APPLIED_PRICE  ST_XAU_AppliedPrice = PRICE_OPEN;
+input int                 ST_XAU_HTFBarsToScan = 500;
+input double              ST_XAU_LineTouchTolerance = 220.0;
+input double              ST_XAU_BreakBuffer = 110.0;
+input ulong               ST_XAU_MagicNumber = 26042503;
+input bool                ST_XAU_DrawTrendline = true;
+
+//+------------------------------------------------------------------+
+//| Balance scaling: LOT_* = nominal size at ORCH_ReferenceBalance    |
+//+------------------------------------------------------------------+
+double United_BalanceScaleFactor()
+{
+   if(!ORCH_ScaleLotsByBalance || ORCH_ReferenceBalance <= 0.0)
+      return 1.0;
+   const double money = ORCH_UseEquityInsteadOfBalance
+                        ? AccountInfoDouble(ACCOUNT_EQUITY)
+                        : AccountInfoDouble(ACCOUNT_BALANCE);
+   double raw = money / ORCH_ReferenceBalance;
+   if(raw < ORCH_MinBalanceScale)
+      raw = ORCH_MinBalanceScale;
+   if(raw > ORCH_MaxBalanceScale)
+      raw = ORCH_MaxBalanceScale;
+   return raw;
+}
+
+double United_ScaledLot(const double baseLot)
+{
+   const double lot = baseLot * United_BalanceScaleFactor();
+   return (lot > 0.0 ? lot : 0.0);
+}
+
+void United_RefreshScaledLots()
+{
+   g_DB_LotSize = United_ScaledLot(LOT_DB_DarvasBox);
+   g_ES_LotSize = United_ScaledLot(LOT_ES_EMASlopeDistance);
+   g_RC_LotSize = United_ScaledLot(LOT_RC_RSICrossOver);
+   g_RM_LotSize = United_ScaledLot(LOT_RM_RSIMidPointHijack);
+   g_Pos_RS_APPL = United_ScaledLot(LOT_RS_APPL);
+   g_Pos_RS_BTCUSD = United_ScaledLot(LOT_RS_BTCUSD);
+   g_Pos_RS_NVDA = United_ScaledLot(LOT_RS_NVDA);
+   g_Pos_RS_TSLA = United_ScaledLot(LOT_RS_TSLA);
+   g_Pos_RS_XAUUSD = United_ScaledLot(LOT_RS_XAUUSD);
+   g_Pos_RRA_EURUSD = United_ScaledLot(LOT_RRA_EURUSD);
+   g_Pos_RRA_AUDUSD = United_ScaledLot(LOT_RRA_AUDUSD);
+   g_Pos_SE = United_ScaledLot(LOT_SE_SuperEMA);
+   g_Pos_RCO = United_ScaledLot(LOT_RCO_RSIConsolidation);
+   g_Pos_ST_BTCUSD = United_ScaledLot(LOT_ST_BTCUSD);
+   g_Pos_ST_XAUUSD = United_ScaledLot(LOT_ST_XAUUSD);
+}
+
 //+------------------------------------------------------------------+
 //| Global Variables - DarvasBox                                      |
 //+------------------------------------------------------------------+
@@ -483,6 +580,8 @@ RSIScalpingData rsTSLAData;
 RSIScalpingData rsXAUUSDData;
 SuperEMAData seData;
 RSIConsolidationData rcoData;
+SimpleTrendlineData stBTCData;
+SimpleTrendlineData stXAUData;
 
 //+------------------------------------------------------------------+
 //| Global Variables - RSI Reversal Asian                            |
@@ -497,10 +596,7 @@ int OnInit()
 {
    int initResult = INIT_SUCCEEDED;
    
-   // Initialize global lot size variables
-   g_ES_LotSize = LOT_ES_EMASlopeDistance;
-   g_RC_LotSize = LOT_RC_RSICrossOver;
-   g_RM_LotSize = LOT_RM_RSIMidPointHijack;
+   United_RefreshScaledLots();
    
    // Initialize strategies - log warnings but don't fail entire EA if symbol unavailable
    if(EnableDarvasBox)
@@ -570,6 +666,18 @@ int OnInit()
                                RRA_AUDUSD_UseTakeProfit, RRA_AUDUSD_UseRSIExit, RRA_AUDUSD_RSIExitLevel,
                                RRA_AUDUSD_CloseOutsideSession, RRA_AUDUSD_TimeFrame, RRA_AUDUSD_MagicNumber, RRA_AUDUSD_Slippage))
          Print("Warning: RSIReversalAsianAUDUSD strategy failed to initialize for symbol '", RRA_AUDUSD_Symbol, "'");
+
+   if(EnableSimpleTrendlineBTCUSD)
+      if(!InitSimpleTrendline(stBTCData, ST_BTC_Symbol, ST_BTC_SignalTF, ST_BTC_HigherTF, ST_BTC_MAPeriod,
+                              ST_BTC_MAMethod, ST_BTC_AppliedPrice, ST_BTC_HTFBarsToScan,
+                              ST_BTC_LineTouchTolerance, ST_BTC_BreakBuffer, ST_BTC_MagicNumber, ST_BTC_DrawTrendline))
+         Print("Warning: SimpleTrendlineBTCUSD failed to initialize for symbol '", ST_BTC_Symbol, "'");
+
+   if(EnableSimpleTrendlineXAUUSD)
+      if(!InitSimpleTrendline(stXAUData, ST_XAU_Symbol, ST_XAU_SignalTF, ST_XAU_HigherTF, ST_XAU_MAPeriod,
+                              ST_XAU_MAMethod, ST_XAU_AppliedPrice, ST_XAU_HTFBarsToScan,
+                              ST_XAU_LineTouchTolerance, ST_XAU_BreakBuffer, ST_XAU_MagicNumber, ST_XAU_DrawTrendline))
+         Print("Warning: SimpleTrendlineXAUUSD failed to initialize for symbol '", ST_XAU_Symbol, "'");
    
    Print("United EA initialized. Active strategies: ", 
          (EnableDarvasBox ? "DarvasBox " : ""),
@@ -584,7 +692,9 @@ int OnInit()
          (EnableSuperEMA ? "SuperEMA " : ""),
          (EnableRSIConsolidation ? "RSIConsolidation " : ""),
          (EnableRSIReversalAsianEURUSD ? "RSIReversalAsianEURUSD " : ""),
-         (EnableRSIReversalAsianAUDUSD ? "RSIReversalAsianAUDUSD " : ""));
+         (EnableRSIReversalAsianAUDUSD ? "RSIReversalAsianAUDUSD " : ""),
+         (EnableSimpleTrendlineBTCUSD ? "SimpleTrendlineBTCUSD " : ""),
+         (EnableSimpleTrendlineXAUUSD ? "SimpleTrendlineXAUUSD " : ""));
    
    return initResult;
 }
@@ -632,6 +742,11 @@ void OnDeinit(const int reason)
    
    if(EnableRSIReversalAsianAUDUSD)
       DeinitRSIReversalAsian(rraAUDUSDData);
+
+   if(EnableSimpleTrendlineBTCUSD)
+      DeinitSimpleTrendline(stBTCData);
+   if(EnableSimpleTrendlineXAUUSD)
+      DeinitSimpleTrendline(stXAUData);
    
    Print("United EA deinitialized. Reason: ", reason);
 }
@@ -641,6 +756,8 @@ void OnDeinit(const int reason)
 //+------------------------------------------------------------------+
 void OnTick()
 {
+   United_RefreshScaledLots();
+
    if(EnableDarvasBox)
       ProcessDarvasBox(DB_Symbol);
    
@@ -656,49 +773,54 @@ void OnTick()
    if(EnableRSIScalpingAPPL)
       ProcessRSIScalping(rsAPPLData, RS_APPL_Symbol, RS_APPL_TimeFrame, RS_APPL_RSI_Period, RS_APPL_RSI_Applied_Price,
                         RS_APPL_RSI_Overbought, RS_APPL_RSI_Oversold, RS_APPL_RSI_Target_Buy, RS_APPL_RSI_Target_Sell,
-                        RS_APPL_BarsToWait, LOT_RS_APPL, RS_APPL_MagicNumber,
+                        RS_APPL_BarsToWait, g_Pos_RS_APPL, RS_APPL_MagicNumber,
                         false, RS_ReversalATRPeriod, RS_ReversalAdverseAtrMult, RS_ReversalSignsRequired,
                         RS_ReversalRsiVelocity, RS_ReversalBodyAtrMult);
    
    if(EnableRSIScalpingBTCUSD)
       ProcessRSIScalping(rsBTCUSDData, RS_BTCUSD_Symbol, RS_BTCUSD_TimeFrame, RS_BTCUSD_RSI_Period, RS_BTCUSD_RSI_Applied_Price,
                         RS_BTCUSD_RSI_Overbought, RS_BTCUSD_RSI_Oversold, RS_BTCUSD_RSI_Target_Buy, RS_BTCUSD_RSI_Target_Sell,
-                        RS_BTCUSD_BarsToWait, LOT_RS_BTCUSD, RS_BTCUSD_MagicNumber,
+                        RS_BTCUSD_BarsToWait, g_Pos_RS_BTCUSD, RS_BTCUSD_MagicNumber,
                         false, RS_ReversalATRPeriod, RS_ReversalAdverseAtrMult, RS_ReversalSignsRequired,
                         RS_ReversalRsiVelocity, RS_ReversalBodyAtrMult);
    
    if(EnableRSIScalpingNVDA)
       ProcessRSIScalping(rsNVDAData, RS_NVDA_Symbol, RS_NVDA_TimeFrame, RS_NVDA_RSI_Period, RS_NVDA_RSI_Applied_Price,
                         RS_NVDA_RSI_Overbought, RS_NVDA_RSI_Oversold, RS_NVDA_RSI_Target_Buy, RS_NVDA_RSI_Target_Sell,
-                        RS_NVDA_BarsToWait, LOT_RS_NVDA, RS_NVDA_MagicNumber,
+                        RS_NVDA_BarsToWait, g_Pos_RS_NVDA, RS_NVDA_MagicNumber,
                         false, RS_ReversalATRPeriod, RS_ReversalAdverseAtrMult, RS_ReversalSignsRequired,
                         RS_ReversalRsiVelocity, RS_ReversalBodyAtrMult);
    
    if(EnableRSIScalpingTSLA)
       ProcessRSIScalping(rsTSLAData, RS_TSLA_Symbol, RS_TSLA_TimeFrame, RS_TSLA_RSI_Period, RS_TSLA_RSI_Applied_Price,
                         RS_TSLA_RSI_Overbought, RS_TSLA_RSI_Oversold, RS_TSLA_RSI_Target_Buy, RS_TSLA_RSI_Target_Sell,
-                        RS_TSLA_BarsToWait, LOT_RS_TSLA, RS_TSLA_MagicNumber,
+                        RS_TSLA_BarsToWait, g_Pos_RS_TSLA, RS_TSLA_MagicNumber,
                         false, RS_ReversalATRPeriod, RS_ReversalAdverseAtrMult, RS_ReversalSignsRequired,
                         RS_ReversalRsiVelocity, RS_ReversalBodyAtrMult);
    
    if(EnableRSIScalpingXAUUSD)
       ProcessRSIScalping(rsXAUUSDData, RS_XAUUSD_Symbol, RS_XAUUSD_TimeFrame, RS_XAUUSD_RSI_Period, RS_XAUUSD_RSI_Applied_Price,
                         RS_XAUUSD_RSI_Overbought, RS_XAUUSD_RSI_Oversold, RS_XAUUSD_RSI_Target_Buy, RS_XAUUSD_RSI_Target_Sell,
-                        RS_XAUUSD_BarsToWait, LOT_RS_XAUUSD, RS_XAUUSD_MagicNumber,
+                        RS_XAUUSD_BarsToWait, g_Pos_RS_XAUUSD, RS_XAUUSD_MagicNumber,
                         RS_UseReversalEscape, RS_ReversalATRPeriod, RS_ReversalAdverseAtrMult, RS_ReversalSignsRequired,
                         RS_ReversalRsiVelocity, RS_ReversalBodyAtrMult);
    
    if(EnableRSIReversalAsianEURUSD)
-      ProcessRSIReversalAsian(rraEURUSDData, LOT_RRA_EURUSD);
+      ProcessRSIReversalAsian(rraEURUSDData, g_Pos_RRA_EURUSD);
    
    if(EnableRSIReversalAsianAUDUSD)
-      ProcessRSIReversalAsian(rraAUDUSDData, LOT_RRA_AUDUSD);
+      ProcessRSIReversalAsian(rraAUDUSDData, g_Pos_RRA_AUDUSD);
 
    if(EnableSuperEMA)
-      ProcessSuperEMA(seData, LOT_SE_SuperEMA);
+      ProcessSuperEMA(seData, g_Pos_SE);
 
    if(EnableRSIConsolidation)
-      ProcessRSIConsolidation(rcoData, LOT_RCO_RSIConsolidation);
+      ProcessRSIConsolidation(rcoData, g_Pos_RCO);
+
+   if(EnableSimpleTrendlineBTCUSD)
+      ProcessSimpleTrendline(stBTCData, g_Pos_ST_BTCUSD);
+   if(EnableSimpleTrendlineXAUUSD)
+      ProcessSimpleTrendline(stXAUData, g_Pos_ST_XAUUSD);
 }
 
 //+------------------------------------------------------------------+
