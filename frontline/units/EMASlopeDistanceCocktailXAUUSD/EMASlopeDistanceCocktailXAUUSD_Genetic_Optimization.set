@@ -1,0 +1,35 @@
+; saved on 2026.05.13
+; genetic optimization set for EMASlopeDistanceCocktailXAUUSD/main.mq5
+; load in MT5 Strategy Tester -> Inputs -> Load
+; format: Parameter=Current||Start||Step||Stop||Optimize(Y/N)
+;
+; ENUM_TIMEFRAMES: M1=1 M5=5 M15=15 M30=30 H1=16385 H4=16388 D1=16408
+; Timeframe fixed at H1 (16385); sweeping 0..49153 can pick invalid enum values.
+;
+; Ranges/steps match Desktop 123.set (2026.05.13); Y marks parameters included in genetic optimization.
+
+; === EMA / trigger thresholds ===
+EMA_Periode=50||50||1||500||Y
+PreisSchwelle=700.0||70.0||70.0||7000.0||Y
+SteigungSchwelle=25.0||2.5||2.5||250.0||Y
+ÜberwachungTimeout=340||1||1||3400||Y
+TrailingStop=370.0||37.0||37.0||3700.0||Y
+LotGröße=0.07||0.007||0.007||0.7||Y
+
+; === execution / data ===
+MagicNumber=135790||135790||1||1357900||N
+UseSpreadAdjustment=true||false||0||true||N
+Timeframe=16385||16385||0||16385||N
+UseBarData=true||false||0||true||N
+
+; === crossover / profit management ===
+MaxTradesPerCrossover=10||1||1||100||Y
+ProfitCheckBars=15||1||1||150||Y
+CloseUnprofitableTrades=true||false||0||true||N
+
+; === weekly ADX filter ===
+UseWeeklyADXFilter=true||false||0||true||N
+WeeklyADXPeriod=15||1||1||150||Y
+WeeklyADXMin=40.0||4.0||4.0||400.0||Y
+WeeklyADXBarShift=2||1||1||20||Y
+WeeklyADXUseDirection=true||false||0||true||N

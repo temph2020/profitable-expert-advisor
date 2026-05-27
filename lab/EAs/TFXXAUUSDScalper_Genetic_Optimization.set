@@ -1,0 +1,44 @@
+; TFXXAUUSDScalper.mq5 — Strategy Tester → Inputs → Load (Genetic optimization)
+; Format: Parameter=Value||Step||Min||Max||Optimize(Y/N)
+;
+; ENUM_TIMEFRAMES (MT5): M1=1 M5=5 M15=15 M30=30 H1=16385 H4=16388 D1=16408
+; Keep InpSignalTF fixed (single integer). Do not use Min–Max sweeps on enums — genetic
+; often tries invalid values between named periods and OnInit fails.
+;
+; Baseline aligned with Desktop 123.set (2026.05.08); magic corrected to 928001 (EA default).
+
+; === Instrument ===
+InpSymbol=XAUUSD
+
+; === Session ===
+InpSignalTF=5||0||5||5||N
+InpUseSessionFilter=false||false||0||true||N
+InpSessionStartHour=7||0||7||7||N
+InpSessionEndHour=22||0||22||22||N
+
+; === Donchian breakout ===
+InpDonchianPeriod=20||2||10||80||Y
+InpRequireFreshBreak=true||false||0||true||N
+InpTradeLong=true||false||0||true||N
+InpTradeShort=true||false||0||true||N
+
+; === Consolidation filter (horizontal → breakout) ===
+InpUseNarrowChannelFilter=false||false||0||true||N
+InpMaxChannelWidthAtrMult=3.0||0.5||1.5||6.0||Y
+
+; === Stops & targets (Nick-style RR) ===
+InpSlBufferPoints=30||5||10||120||Y
+InpTpRiskReward=2.0||0.25||1.25||4.0||Y
+InpUseMidStopFallback=false||false||0||true||N
+
+; === Risk ===
+InpUsePercentRisk=true||false||0||true||N
+InpRiskPercent=1.0||0.15||0.25||2.5||Y
+InpFixedLots=0.1||0.01||0.1||0.1||N
+InpMagic=928001||0||928001||928001||N
+InpSlippagePoints=50||0||50||50||N
+InpMaxSpreadPoints=60||5||20||100||Y
+InpMaxPositions=1||0||1||1||N
+
+; === Indicators ===
+InpAtrPeriod=14||1||7||28||Y

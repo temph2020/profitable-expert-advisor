@@ -23,14 +23,14 @@ def test_mt5_connection():
         print("3. Try logging into MT5 manually first")
         return False
     
-    print("✓ MT5 initialized successfully")
+    print("[OK] MT5 initialized successfully")
     
     # Get account info
     account_info = mt5.account_info()
     if account_info is None:
         print("WARNING: Could not get account info")
     else:
-        print(f"✓ Account: {account_info.login}")
+        print(f"[OK] Account: {account_info.login}")
         print(f"  Server: {account_info.server}")
         print(f"  Balance: ${account_info.balance:.2f}")
     
@@ -41,9 +41,9 @@ def test_mt5_connection():
     for symbol in test_symbols:
         symbol_info = mt5.symbol_info(symbol)
         if symbol_info is None:
-            print(f"✗ {symbol}: Not available")
+            print(f"[FAIL] {symbol}: Not available")
         else:
-            print(f"✓ {symbol}: Available")
+            print(f"[OK] {symbol}: Available")
             print(f"  Bid: {symbol_info.bid:.5f}, Ask: {symbol_info.ask:.5f}")
             print(f"  Spread: {symbol_info.spread} points")
     
@@ -56,31 +56,34 @@ def test_mt5_connection():
     
     rates = mt5.copy_rates_range(symbol, timeframe, start_date, end_date)
     if rates is None or len(rates) == 0:
-        print(f"✗ Could not retrieve historical data for {symbol}")
+        print(f"[FAIL] Could not retrieve historical data for {symbol}")
         print("  Make sure you have historical data in MT5")
     else:
-        print(f"✓ Retrieved {len(rates)} bars for {symbol}")
+        print(f"[OK] Retrieved {len(rates)} bars for {symbol}")
         print(f"  Date range: {datetime.fromtimestamp(rates[0]['time'])} to {datetime.fromtimestamp(rates[-1]['time'])}")
     
-    # Test indicator creation
+    # Test indicator creation (optional: some MetaTrader5 Python wheels omit terminal indicator APIs)
     print("\nTesting indicator creation...")
-    rsi_handle = mt5.iRSI(symbol, timeframe, 14, mt5.PRICE_CLOSE)
-    if rsi_handle == mt5.INVALID_HANDLE:
-        print("✗ Failed to create RSI indicator")
+    if not hasattr(mt5, "iRSI") or not hasattr(mt5, "iMA"):
+        print("[SKIP] mt5.iRSI / mt5.iMA not available in this MetaTrader5 build; skipping handle tests.")
+        print("  (Historical data + account checks above are enough for the Python backtest harness.)")
     else:
-        print("✓ RSI indicator created successfully")
-        # Get RSI values
-        rsi_values = mt5.copy_buffer(rsi_handle, 0, 0, 10)
-        if rsi_values is not None:
-            print(f"  Latest RSI values: {rsi_values[-3:]}")
-        mt5.indicator_release(rsi_handle)
-    
-    ema_handle = mt5.iMA(symbol, timeframe, 50, 0, mt5.MODE_EMA, mt5.PRICE_CLOSE)
-    if ema_handle == mt5.INVALID_HANDLE:
-        print("✗ Failed to create EMA indicator")
-    else:
-        print("✓ EMA indicator created successfully")
-        mt5.indicator_release(ema_handle)
+        rsi_handle = mt5.iRSI(symbol, timeframe, 14, mt5.PRICE_CLOSE)
+        if rsi_handle == mt5.INVALID_HANDLE:
+            print("[FAIL] Failed to create RSI indicator")
+        else:
+            print("[OK] RSI indicator created successfully")
+            rsi_values = mt5.copy_buffer(rsi_handle, 0, 0, 10)
+            if rsi_values is not None:
+                print(f"  Latest RSI values: {rsi_values[-3:]}")
+            mt5.indicator_release(rsi_handle)
+
+        ema_handle = mt5.iMA(symbol, timeframe, 50, 0, mt5.MODE_EMA, mt5.PRICE_CLOSE)
+        if ema_handle == mt5.INVALID_HANDLE:
+            print("[FAIL] Failed to create EMA indicator")
+        else:
+            print("[OK] EMA indicator created successfully")
+            mt5.indicator_release(ema_handle)
     
     # Cleanup
     mt5.shutdown()
