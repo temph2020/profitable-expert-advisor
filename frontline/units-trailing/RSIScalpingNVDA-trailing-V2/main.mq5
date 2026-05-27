@@ -5,23 +5,34 @@
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2025, MetaQuotes Ltd."
 #property link      "https://www.mql5.com"
-#property version   "1.00"
+#property version   "1.02"
 
 #include <Trade\Trade.mqh>
 #include "../_united/MagicNumberHelpers.mqh"
 
-//--- Input parameters — synced with Desktop 123.set (2026.05.13)
-input ENUM_TIMEFRAMES      TimeFrame = PERIOD_M20; // Timeframe for Analysis
-input int                  RSI_Period = 14;           // RSI Period
+//--- Input parameters
+input ENUM_TIMEFRAMES      TimeFrame = PERIOD_M15; // Timeframe for Analysis
+input int                  RSI_Period = 8;           // RSI Period
 input ENUM_APPLIED_PRICE   RSI_Applied_Price = PRICE_CLOSE; // RSI Applied Price
-input double              RSI_Overbought = 6;        // RSI Overbought Level
-input double              RSI_Oversold = 66;          // RSI Oversold Level
-input double              RSI_Target_Buy = 98;         // RSI Target for Buy Exit
-input double              RSI_Target_Sell = 52;        // RSI Target for Sell Exit
-input int                 BarsToWait = 12;             // Bars to wait when RSI goes against position
-input double              LotSize = 5;              // Lot Size
-input int                 MagicNumber = 129102315;        // Magic Number
+input double              RSI_Overbought = 36;        // RSI Overbought Level
+input double              RSI_Oversold = 38;          // RSI Oversold Level
+input double              RSI_Target_Buy = 90;         // RSI Target for Buy Exit
+input double              RSI_Target_Sell = 70;        // RSI Target for Sell Exit
+input int                 BarsToWait = 5;             // Bars to wait when RSI goes against position
+input double              LotSize = 50;              // Lot Size
+input int                 MagicNumber = 12345;        // Magic Number
 input int                 Slippage = 3;               // Slippage in points
+
+input group "=== Trailing stop ==="
+input bool   UseTrailingStop = true;               // move SL behind bid/ask while in profit
+input double TrailingStopDistancePoints = 375.0;      // SL distance from bid/ask (points)
+input double TrailingActivationPoints = 75.0;        // min profit before trailing (0 = same as distance)
+
+input group "=== Session filter new entries (UTC) ==="
+// Stocks/CFDs often shift behaviour around major cash opens; some NVDA 1h charts show a sharp volume + direction change near 09:00 UTC. Filter affects OPEN only (exits/trailing unchanged).
+input bool   UseSessionFilterUTC = false;            // if true, block new entries outside [TradeStartHourUTC, TradeEndHourUTC)
+input int    TradeStartHourUTC = 9;                  // allow new trades when TimeGMT hour >= this (0..23)
+input int    TradeEndHourUTC = 22;                   // allow new trades when TimeGMT hour < this (exclusive). If Start>End, window wraps midnight (e.g. 22..6)
 
 //--- Global variables
 CTrade trade;
@@ -72,35 +83,60 @@ void OnDeinit(const int reason)
 //+------------------------------------------------------------------+
 void OnTick()
 {
-   // Check if we have enough bars
    if(Bars(_Symbol, TimeFrame) < RSI_Period + 2)
-   {
       return;
-   }
-      
-   // Check if this is a new bar
-   datetime current_bar_time = iTime(_Symbol, TimeFrame, 0);
-   if(current_bar_time == last_bar_time)
-   {
-      return;  // Still the same bar, don't process
-   }
-      
-   last_bar_time = current_bar_time;
-   
-   // Update RSI values
+
+   const datetime current_bar_time = iTime(_Symbol, TimeFrame, 0);
+   const bool new_bar = (current_bar_time != last_bar_time);
+   const bool in_pos = position_open || PositionExistsByMagic(_Symbol, (ulong)MagicNumber);
+
+   if(!in_pos && !new_bar)
+      return;
+
    if(!UpdateRSI())
-   {
       return;
-   }
-   
-   // Check for existing position
+
+   if(in_pos && UseTrailingStop)
+      ApplyTrailingStop();
+
+   if(!new_bar)
+      return;
+
+   last_bar_time = current_bar_time;
+
+   ResyncPositionFromMarket();
    CheckExistingPosition();
-   
-   // Check for new entry signals - only if no position exists for THIS EA (magic number) on THIS symbol
-   if(!position_open && !PositionExistsByMagic(_Symbol, MagicNumber))
-   {
+
+   if(!position_open && !PositionExistsByMagic(_Symbol, (ulong)MagicNumber))
       CheckEntrySignals();
-   }
+}
+
+//+------------------------------------------------------------------+
+//| New entries allowed in [TradeStartHourUTC, TradeEndHourUTC) GMT  |
+//+------------------------------------------------------------------+
+bool IsWithinNewEntryWindowUTC()
+{
+   if(!UseSessionFilterUTC)
+      return true;
+
+   int s = TradeStartHourUTC;
+   int e = TradeEndHourUTC;
+   if(s < 0) s = 0;
+   if(s > 23) s = 23;
+   if(e < 0) e = 0;
+   if(e > 24) e = 24;
+
+   MqlDateTime dt;
+   TimeToStruct(TimeGMT(), dt);
+   const int h = dt.hour;
+
+   if(s == e)
+      return true;
+
+   if(s < e)
+      return (h >= s && h < e);
+
+   return (h >= s || h < e);
 }
 
 //+------------------------------------------------------------------+
@@ -121,6 +157,85 @@ bool UpdateRSI()
 }
 
 //+------------------------------------------------------------------+
+//| Trail SL behind favorable price (every tick when enabled)       |
+//+------------------------------------------------------------------+
+void ApplyTrailingStop()
+{
+   if(TrailingStopDistancePoints <= 0.0)
+      return;
+   if(!PositionSelectByMagic(_Symbol, (ulong)MagicNumber))
+      return;
+
+   const double point = SymbolInfoDouble(_Symbol, SYMBOL_POINT);
+   if(point <= 0.0)
+      return;
+
+   const int digits = (int)SymbolInfoInteger(_Symbol, SYMBOL_DIGITS);
+   const double trail_dist = TrailingStopDistancePoints * point;
+   const double activation_pts = (TrailingActivationPoints > 0.0)
+      ? TrailingActivationPoints
+      : TrailingStopDistancePoints;
+   const double activation = activation_pts * point;
+   const long stops_level = SymbolInfoInteger(_Symbol, SYMBOL_TRADE_STOPS_LEVEL);
+   const double min_dist = (double)stops_level * point;
+
+   const ENUM_POSITION_TYPE ptype = (ENUM_POSITION_TYPE)PositionGetInteger(POSITION_TYPE);
+   const double entry = PositionGetDouble(POSITION_PRICE_OPEN);
+   const double cur_sl = PositionGetDouble(POSITION_SL);
+   const double cur_tp = PositionGetDouble(POSITION_TP);
+
+   if(ptype == POSITION_TYPE_BUY)
+   {
+      const double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+      if(bid - entry <= activation)
+         return;
+
+      double new_sl = NormalizeDouble(bid - trail_dist, digits);
+      if(min_dist > 0.0 && bid - new_sl < min_dist)
+         new_sl = NormalizeDouble(bid - min_dist, digits);
+
+      if(new_sl >= bid || new_sl <= 0.0)
+         return;
+      if(cur_sl > 0.0 && new_sl <= cur_sl)
+         return;
+
+      ModifyPositionByMagic(trade, _Symbol, (ulong)MagicNumber, new_sl, cur_tp);
+   }
+   else if(ptype == POSITION_TYPE_SELL)
+   {
+      const double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+      if(entry - ask <= activation)
+         return;
+
+      double new_sl = NormalizeDouble(ask + trail_dist, digits);
+      if(min_dist > 0.0 && new_sl - ask < min_dist)
+         new_sl = NormalizeDouble(ask + min_dist, digits);
+
+      if(new_sl <= ask || new_sl <= 0.0)
+         return;
+      if(cur_sl > 0.0 && new_sl >= cur_sl)
+         return;
+
+      ModifyPositionByMagic(trade, _Symbol, (ulong)MagicNumber, new_sl, cur_tp);
+   }
+}
+
+//+------------------------------------------------------------------+
+//| Sync ticket/state if a position exists after restart             |
+//+------------------------------------------------------------------+
+void ResyncPositionFromMarket()
+{
+   if(position_open)
+      return;
+   ulong t = GetPositionTicketByMagic(_Symbol, (ulong)MagicNumber);
+   if(t == 0 || !PositionSelectByTicket(t))
+      return;
+   position_ticket = (int)t;
+   position_open = true;
+   current_position_type = (ENUM_POSITION_TYPE)PositionGetInteger(POSITION_TYPE);
+}
+
+//+------------------------------------------------------------------+
 //| Check existing position for exit conditions                     |
 //+------------------------------------------------------------------+
 void CheckExistingPosition()
@@ -131,7 +246,7 @@ void CheckExistingPosition()
    }
    
    // Check if position still exists with correct magic number AND symbol for THIS EA
-   if(!PositionSelectByTicketSymbolAndMagic(position_ticket, _Symbol, MagicNumber))
+   if(!PositionSelectByTicketSymbolAndMagic(position_ticket, _Symbol, (ulong)MagicNumber))
    {
       position_open = false;
       position_ticket = 0;
@@ -224,6 +339,9 @@ void CheckExistingPosition()
 //+------------------------------------------------------------------+
 void CheckEntrySignals()
 {
+   if(!IsWithinNewEntryWindowUTC())
+      return;
+
    // Buy signal: RSI crosses from oversold to above oversold (checking the actual crossover)
    if(rsi_two_bars_ago <= RSI_Oversold && rsi_prev > RSI_Oversold)
    {
@@ -243,7 +361,7 @@ void CheckEntrySignals()
 void OpenBuyPosition()
 {
    // Verify no position exists for THIS EA (magic number) on THIS symbol before opening
-   if(PositionExistsByMagic(_Symbol, MagicNumber))
+   if(PositionExistsByMagic(_Symbol, (ulong)MagicNumber))
    {
       return; // Position already exists for this EA
    }
@@ -256,7 +374,7 @@ void OpenBuyPosition()
       if(new_ticket > 0)
       {
          // Verify position was opened for THIS EA (magic number) on THIS symbol
-         if(PositionSelectByTicketSymbolAndMagic(new_ticket, _Symbol, MagicNumber))
+         if(PositionSelectByTicketSymbolAndMagic(new_ticket, _Symbol, (ulong)MagicNumber))
          {
             position_ticket = new_ticket;
             position_open = true;
@@ -276,7 +394,7 @@ void OpenBuyPosition()
 void OpenSellPosition()
 {
    // Verify no position exists for THIS EA (magic number) on THIS symbol before opening
-   if(PositionExistsByMagic(_Symbol, MagicNumber))
+   if(PositionExistsByMagic(_Symbol, (ulong)MagicNumber))
    {
       return; // Position already exists for this EA
    }
@@ -289,7 +407,7 @@ void OpenSellPosition()
       if(new_ticket > 0)
       {
          // Verify position was opened for THIS EA (magic number) on THIS symbol
-         if(PositionSelectByTicketSymbolAndMagic(new_ticket, _Symbol, MagicNumber))
+         if(PositionSelectByTicketSymbolAndMagic(new_ticket, _Symbol, (ulong)MagicNumber))
          {
             position_ticket = new_ticket;
             position_open = true;
@@ -309,7 +427,7 @@ void OpenSellPosition()
 void ClosePosition()
 {
    // Close position using helper that verifies symbol AND magic number for THIS EA
-   if(ClosePositionByMagic(trade, _Symbol, MagicNumber))
+   if(ClosePositionByMagic(trade, _Symbol, (ulong)MagicNumber))
    {
       position_open = false;
       position_ticket = 0;

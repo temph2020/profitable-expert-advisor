@@ -1,0 +1,38 @@
+; RSICrossOverReversalXAUUSD/main.mq5 — Strategy Tester → Inputs → Load
+;
+; MT5 line format: Name=Value||From||Step||To||Optimize
+;   Value = input default when you Load this file
+;   From, Step, To = optimization range when Optimize=Y (Genetic / slow complete algorithm)
+;   Optimize=N = keep Value; From/Step/To are ignored
+;
+; First column matches main.mq5 source defaults (not the old Desktop 123 snapshot).
+
+MagicNumber=7||7||1||7||N
+rsiPeriod=19||10||1||35||Y
+overboughtLevel=93||65||2||95||Y
+oversoldLevel=22||10||1||45||Y
+entryRSIBuySpread=0.0||0.0||0.5||8.0||Y
+entryRSISellSpread=0.0||0.0||0.5||8.0||Y
+lotSize=0.1||0.1||0.01||0.5||N
+slippage=3||3||1||3||N
+cooldownSeconds=209||60||30||600||Y
+TimeFrame1=1||1||0||1||N
+TimeFrame2=1||1||0||1||N
+BarTimeFrame=12||12||0||12||N
+emaPeriod=140||50||10||300||Y
+emaSlopeThreshold=105.0||20.0||5.0||200.0||Y
+exitBuyRSI=86.0||65.0||1.0||92.0||Y
+exitSellRSI=10.0||5.0||1.0||40.0||Y
+TrailingStop=295.0||80.0||15.0||450.0||Y
+emaDistanceThreshold=165.0||40.0||10.0||350.0||Y
+tradingHourOneBegin=24||0||1||23||N
+tradingHourOneEnd=22||0||1||23||N
+tradingHourTwoBegin=6||0||1||14||Y
+tradingHourTwoEnd=19||14||1||23||Y
+Sunday=false||false||0||true||Y
+Monday=false||false||0||true||Y
+Tuesday=true||false||0||true||Y
+Wednesday=true||false||0||true||Y
+Thursday=true||false||0||true||Y
+Friday=false||false||0||true||Y
+Saturday=false||false||0||true||Y

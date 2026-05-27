@@ -8,24 +8,24 @@
 #property version   "1.00"
 #include <Trade\Trade.mqh>
 #include "../_united/MagicNumberHelpers.mqh"
-//--- Eingabeparameter (Input Parameters) - Optimized Profitable Parameters
-input int    EMA_Periode = 50;           // EMA Periode
-input double PreisSchwelle = 700.0;       // Preisbewegung Schwelle in Pips
-input double SteigungSchwelle = 25.0;     // EMA Steigung Schwelle in Pips
+//--- Eingabeparameter (Input Parameters) — synced with Desktop 123.set (2026.05.13)
+input int    EMA_Periode = 85;           // EMA Periode
+input double PreisSchwelle = 350.0;       // Preisbewegung Schwelle in Pips
+input double SteigungSchwelle = 22.5;     // EMA Steigung Schwelle in Pips
 input int    ÜberwachungTimeout = 340;   // Überwachungszeit in Sekunden
-input double TrailingStop = 370.0;        // Gleitender Stop in Pips
+input double TrailingStop = 74.0;        // Gleitender Stop in Pips
 input double LotGröße = 0.07;             // Handelsvolumen
 input int    MagicNumber = 135790;        // Magic Number für Trades
 input bool   UseSpreadAdjustment = true; // Spread-Anpassung verwenden
 input ENUM_TIMEFRAMES Timeframe = PERIOD_H1; // Zeitraum für Analyse
 input bool   UseBarData = true;          // Bar-Daten statt Tick-Daten verwenden
-input int    MaxTradesPerCrossover = 10;  // Maximale Trades pro Crossover-Ereignis
-input int    ProfitCheckBars = 15;       // Bars bis zur Profit-Prüfung
+input int    MaxTradesPerCrossover = 48;  // Maximale Trades pro Crossover-Ereignis
+input int    ProfitCheckBars = 78;       // Bars bis zur Profit-Prüfung
 input bool   CloseUnprofitableTrades = true; // Unprofitable Trades nach X Bars schließen
 input bool   UseWeeklyADXFilter = true;  // W1 ADX Trendfilter aktivieren
-input int    WeeklyADXPeriod = 15;       // ADX-Periode auf W1
-input double WeeklyADXMin = 40.0;        // Minimaler ADX fuer Trendfreigabe
-input int    WeeklyADXBarShift = 2;      // 1=letzte geschlossene W1-Kerze
+input int    WeeklyADXPeriod = 28;       // ADX-Periode auf W1
+input double WeeklyADXMin = 25.0;        // Minimaler ADX fuer Trendfreigabe
+input int    WeeklyADXBarShift = 8;      // 1=letzte geschlossene W1-Kerze
 input bool   WeeklyADXUseDirection = true; // +DI/-DI Richtung mitpruefen
 
 //--- Globale Variablen (Global Variables)

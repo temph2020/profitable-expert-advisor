@@ -1,0 +1,26 @@
+; CandleChartPattern/main.mq5 — Strategy Tester → Inputs → Load
+; Format: Name=Value||From||Step||To||Optimize(Y/N)
+; Value = load default (aligned with EA + Desktop 123.set 2026.05.14). From/Step/To used when Y.
+;
+; === Market ===
+InpSymbol=
+InpLots=0.01||0.01||0.01||0.2||N
+InpMagic=771001||771001||1||771001||N
+InpSlippagePoints=30||30||1||300||N
+InpMaxSpreadPoints=50||10||5||200||Y
+; === Timeframes ===
+; Enum timeframes: keep fixed during optimization (change manually if needed).
+InpSignalTF=15||0||0||49153||N
+InpConfirmTF=16385||0||0||49153||N
+; === Patterns (signal TF, shift 1) ===
+InpUseEngulfing=true||false||0||true||Y
+InpUseHammerPin=true||false||0||true||Y
+InpMinBodyPoints=5.0||2.0||0.5||25.0||Y
+InpHammerWickRatio=2.0||1.2||0.1||4.0||Y
+; === HTF confirmation ===
+InpRequireHtfCandleDir=true||false||0||true||Y
+InpRequireHtfPattern=false||false||0||true||Y
+; === Behaviour ===
+InpOnlyOnePosition=true||false||0||true||N
+InpCloseOnReverseSignal=true||false||0||true||Y
+InpCloseOnAdversePattern=true||false||0||true||Y

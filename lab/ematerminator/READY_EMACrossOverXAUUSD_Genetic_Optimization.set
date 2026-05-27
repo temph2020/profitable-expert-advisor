@@ -1,0 +1,55 @@
+; READY_EMACrossOverXAUUSD.mq5 — Genetic optimization (sanitized ranges)
+; Load: Strategy Tester → Inputs → Load
+; Format: Name=Default||Min||Step||Max||Y/N
+;
+; Units (read before optimizing):
+;   slopeThreshold     — |ΔEMA|×100 per chart bar; ~93 ≈ $0.93 EMA move (H1 EMA, checked each tick)
+;   distanceThreshold  — |price−EMA| in price ($ for XAUUSD)
+;   cooldown*          — minutes
+;   atrMultiplier      — stop distance = ATR(14) × multiplier (price $)
+;   TrailingStop       — trail in symbol POINTS (0.01 pt on XAU: 500≈$5). EA default 5≈$0.05 — set uses 500 for tests.
+;   reverseTP          — close reversal basket when profit ≥ this (account currency)
+;   reverseLotSizeMultiplier — reversal volume = position volume × this (dangerous above ~5)
+;   score*             — arbitrary units; keep threshold ~4–10× crossOverStep or ~8–15 ticks of slope step
+;
+; ENUM_TIMEFRAMES: H1=16385 — fixed; do not sweep enum range.
+
+; === fixed ===
+MagicNumber=42||42||1||42||N
+minimumLotSize=0.01||0.01||0||0.01||N
+emaTimeFrame=16385||16385||0||16385||N
+UseTrailingStop=true||false||0||true||N
+maxScore=7900||7900||0||7900||N
+emaDecayStep=0||0||0||0||N
+resetCrossoverTradeOnDistance=false||false||0||false||N
+resetCrossoverNumber=0||0||0||0||N
+maxTimeInPosition=9||9||0||9||N
+max_drawdown=0.1||0.1||0||0.1||N
+
+; === EMA / slope (price-scaled) ===
+emaPeriod=64||40||4||88||Y
+slopeThreshold=93||50||5||140||Y
+distanceThreshold=28.5||12.0||2.0||45.0||Y
+
+; === score increments (keep proportional to scoreThreshold) ===
+scoreThreshold=5200||3500||250||7000||Y
+crossOverStep=950||600||50||1400||Y
+slopeThresholdStep=635||350||50||950||Y
+emaDistanceStep=150||75||25||250||Y
+delayClampAbsolute=1690||1000||100||2500||Y
+decayMultiplier=0.08||0.03||0.01||0.15||Y
+
+; === timing ===
+cooldownMinutes=18||8||2||35||Y
+tradeCooldownMinutes=24||12||3||48||Y
+maxCrossoverTrades=4||2||1||6||Y
+
+; === stops / trail ===
+atrMultiplier=7.6||4.0||0.5||12.0||Y
+TrailingStop=500||200||50||1000||Y
+
+; === reversal / hold (minutes & account $) ===
+tradeLengthThreshold=98||60||10||180||Y
+secondaryPositionHoldTime=32||15||5||60||Y
+reverseTP=32||15||5||80||Y
+reverseLotSizeMultiplier=15||4||1||20||Y

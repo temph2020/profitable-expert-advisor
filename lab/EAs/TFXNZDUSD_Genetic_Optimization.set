@@ -1,0 +1,42 @@
+; saved for genetic optimization — TFXNZDUSD.mq5 (Strategy Tester → Inputs → Load)
+; Repo format: Parameter=Value||Step||Min||Max||Optimize(Y/N)
+; ENUM_TIMEFRAMES: H1=16385, H4=16388, D1=16408, W1=32769
+; Do NOT optimize InpSignalTF as Min–Max integers — MT5 genetic samples invalid values (e.g. 16386)
+; between real enums and OnInit fails. Compare H1 vs H4 in separate runs, or rely on EA TF resolution.
+
+; === Symbol ===
+; String inputs: use bare name OR Value||Value||Value||Value||N — never use 0 as middle field (MT5 may feed the whole line into the string).
+InpSymbol=NZDUSD
+
+; === Timeframes (thesis) ===
+InpBiasTF=16408||0||16408||16408||N
+InpHigherBiasTF=32769||0||32769||32769||N
+InpSignalTF=16388||0||16388||16388||N
+
+; === HTF bias (long-only, reactive) ===
+InpUseWeeklyBias=true||false||0||true||N
+InpBiasEmaPeriod=50||2||34||120||Y
+InpAllowCounterBias=false||false||0||true||N
+
+; === Intraday shift (bearish → bullish) ===
+InpFastEma=8||1||5||34||Y
+InpSlowEma=21||2||15||55||Y
+InpMinBearishBars=3||1||2||10||Y
+InpRequireBullBody=true||false||0||true||N
+
+; === Risk ===
+InpLots=0.1||0.01||0.1||0.1||N
+InpMagic=926001||0||926001||926001||N
+InpSlippagePoints=20||0||20||20||N
+InpMaxSpreadPoints=40||5||20||60||Y
+InpUseAtrStops=true||false||0||true||N
+InpAtrPeriod=14||1||7||28||Y
+InpSlAtrMult=1.5||0.1||1.0||3.5||Y
+InpTpAtrMult=2.5||0.2||1.5||5.0||Y
+InpMinStopPoints=50.0||5.0||30.0||120.0||Y
+InpMaxPositions=1||0||1||1||N
+
+; === Session (optional) ===
+InpUseSessionFilter=false||false||0||true||N
+InpSessionStartHour=7||0||7||7||N
+InpSessionEndHour=20||0||20||20||N
