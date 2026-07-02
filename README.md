@@ -17,16 +17,35 @@ A comprehensive collection of algorithmic trading strategies for MetaTrader 5, i
 
 ```
 profitable-expert-advisor/
-├── frontline/           # Production-ready trading strategies
-│   ├── MQL5/           # MetaTrader 5 Expert Advisors
-│   └── tradingview/    # TradingView Pine Script strategies
-├── ai/                 # ONNX machine learning models
-├── back-pedal/         # Alternative/experimental strategies
-├── backtesting/        # Python backtesting framework
-│   ├── MT5/           # MT5 Python backtesting
-│   └── own/           # Custom backtesting tools
-└── paper/              # Research papers and simulations
+├── frontline/              # Production MQL5 EAs
+│   ├── cluster-latest/     # United multi-strategy cluster (main entry)
+│   ├── units/              # Standalone per-symbol EAs
+│   ├── units-trailing/     # Trailing-stop variants
+│   ├── units-sharpshooter/
+│   ├── united_template/    # United EA templates
+│   ├── cluster-NZDUSD/     # NZDUSD combo (R&D)
+│   └── tradingview/        # Pine Script
+├── backtesting/            # Python backtesting
+│   └── MT5/                # MT5 API + cluster_audit pipeline
+├── ai/                     # ONNX / ML training & EAs
+├── back-pedal/             # Archived strategies
+├── lab/                    # Experiments & scratch EAs
+├── paper/                  # Research paper & simulations
+├── polymarket/             # Prediction-market scaffold
+├── strategy-tester/        # Factor testing
+└── docs/STRUCTURE.md       # Full layout guide
 ```
+
+📖 **[Detailed structure guide](docs/STRUCTURE.md)** · **[Contributing](CONTRIBUTING.md)** · **[Security](SECURITY.md)**
+
+### Before pushing to GitHub
+
+- No `.env`, account logins, or `ReportTester*.html` in the commit
+- No PDF/PNG/JPG exports — regenerate brochures and charts locally
+- Copy `.env.example` → `.env` and set `MT5_TERMINAL_DATA_ID` for your MT5 data folder
+- Run `python scripts/prepare_public_upload.py` to scan for leftover paths or secrets
+- Regenerate ONNX models locally (`ai/README.md`) — binaries are gitignored
+- Audit outputs stay under `backtesting/MT5/cluster_audit/reports/` (gitignored)
 
 ## Frontline Strategies
 

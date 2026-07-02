@@ -1,0 +1,26 @@
+; SimpleEMA v5 — per-symbol MT5 set
+Timeframe=16388
+FastEmaPeriod=11
+SlowEmaPeriod=40
+TrendLegBars=48
+MinEmaGapPips=1.0
+CrossCooldown=4
+PullbackCooldown=3
+UsePullback=true
+PullbackTouch=0
+PullbackAdxMin=18
+PullbackMinGapPips=0.0
+MaxPullbacksPerLeg=1
+AtrPeriod=20
+AtrSlMult=2.5
+AtrTpMult=5.0
+MaxBarsInTrade=64
+HtfEmaPeriod=200
+UseHtfFilter=true
+UseAdxFilter=false
+AdxPeriod=14
+AdxMin=18.0
+SessionStartHour=8
+SessionEndHour=22
+MaxSpreadPips=80
+LotSize=0.05

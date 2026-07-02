@@ -32,6 +32,7 @@ struct SimpleTrendlineData
    int                maHandle;
    datetime           lastSignalBarTime;
    string             lineName;
+   bool               closeUnprofitableOnNewSignal;
 };
 
 double ST_NormalizeVolume(const string sym, double vol)
@@ -193,7 +194,7 @@ void ST_TryExitOnBreak(SimpleTrendlineData &d, const SimpleTrendlineModel &m)
 
 void ST_TryPullbackEntry(SimpleTrendlineData &d, const SimpleTrendlineModel &m, const double lots)
 {
-   if(PositionExistsByMagic(d.symbol, d.magic))
+   if(!United_PrepareEntrySlot(d.trade, d.symbol, d.magic, d.closeUnprofitableOnNewSignal))
       return;
 
    MqlRates b1[], b2[];

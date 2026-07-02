@@ -1,0 +1,13 @@
+{
+  "timeframe": "M15",
+  "period": ["2020-01-01", "2026-01-01"],
+  "lot_per_symbol": 0.05,
+  "initial_balance": 10000,
+  "comment": "Symbols with net>0 under v5 best params in full 20-symbol scan",
+  "symbols": [
+    {"name": "EURUSD", "max_spread_pips": 6},
+    {"name": "USDCAD", "max_spread_pips": 8},
+    {"name": "CHFJPY", "max_spread_pips": 10},
+    {"name": "XAUUSD", "max_spread_pips": 35}
+  ]
+}

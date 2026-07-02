@@ -42,6 +42,7 @@ struct RSIReversalAsianData {
    int MagicNumber;
    int Slippage;
    double point;
+   bool closeUnprofitableOnNewSignal;
 };
 
 // Session times (UTC)
@@ -425,12 +426,14 @@ void ProcessRSIReversalAsian(RSIReversalAsianData& data, double lotSize)
       }
    }
    
-   // If no position is open, look for entry signals based on RSI crossover
-   if(!hasOpenPosition)
+   // If no position is open (or replacement enabled), look for entry signals
+   if(!hasOpenPosition || data.closeUnprofitableOnNewSignal)
    {
       // Place buy order if RSI crosses below oversold level (oversold crossover)
       if(data.rsiCrossedOversold)
       {
+         if(!United_PrepareEntrySlot(data.trade, data.symbol, (ulong)data.MagicNumber, data.closeUnprofitableOnNewSignal))
+            return;
          double sl = data.UseStopLoss ? currentBid - data.StopLossPips * data.point : 0;
          double tp = data.UseTakeProfit ? currentBid + data.TakeProfitPips * data.point : 0;
          
@@ -459,6 +462,8 @@ void ProcessRSIReversalAsian(RSIReversalAsianData& data, double lotSize)
       // Place sell order if RSI crosses above overbought level (overbought crossover)
       else if(data.rsiCrossedOverbought)
       {
+         if(!United_PrepareEntrySlot(data.trade, data.symbol, (ulong)data.MagicNumber, data.closeUnprofitableOnNewSignal))
+            return;
          double sl = data.UseStopLoss ? currentAsk + data.StopLossPips * data.point : 0;
          double tp = data.UseTakeProfit ? currentAsk - data.TakeProfitPips * data.point : 0;
          

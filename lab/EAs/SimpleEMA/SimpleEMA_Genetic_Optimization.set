@@ -1,0 +1,29 @@
+; SimpleEMA — genetic optimization ranges (EURUSD H1)
+; Format: Name=Default||Min||Step||Max||Y/N
+; Load: Strategy Tester → Inputs → Load, then Optimization → Genetic
+
+; === fixed ===
+Timeframe=16385||16385||0||16385||N
+MagicNumber=20260620||20260620||1||20260620||N
+LotSize=0.10||0.10||0||0.10||N
+UseAtrStops=true||false||0||true||N
+OneTradeOnly=true||true||0||true||N
+ExitOnCross=true||false||0||true||N
+UseTrailing=false||false||0||true||N
+
+; === EMA ===
+FastEmaPeriod=12||8||2||20||Y
+SlowEmaPeriod=26||20||2||60||Y
+MinEmaGapPips=0.0||0.0||1.0||8.0||Y
+
+; === ATR stops ===
+AtrPeriod=14||10||2||20||Y
+AtrSlMult=1.5||1.0||0.25||3.0||Y
+AtrTpMult=2.5||1.5||0.25||4.0||Y
+StopLossPips=30||15||5||60||Y
+TakeProfitPips=60||30||10||120||Y
+TrailPips=20||10||5||40||Y
+
+; === exits / filters ===
+MaxBarsInTrade=48||0||12||96||Y
+MaxSpreadPips=5||0||1||8||Y

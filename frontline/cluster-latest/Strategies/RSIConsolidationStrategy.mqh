@@ -35,6 +35,7 @@ struct RSIConsolidationData
    ulong                 magic;
    int                   slippage;
    int                   maxSpreadPoints;
+   bool                  closeUnprofitableOnNewSignal;
    int                   h_rsi;
    int                   h_adx;
    int                   h_atr;
@@ -330,7 +331,8 @@ void ProcessRSIConsolidation(RSIConsolidationData &d, const double lots)
       RCO_ManageOpenPosition(d, rsi);
       if(isNew)
          d.lastBar = barTime;
-      return;
+      if(!d.closeUnprofitableOnNewSignal)
+         return;
    }
 
    if(d.entryOnNewBarOnly && !isNew)
@@ -360,7 +362,7 @@ void ProcessRSIConsolidation(RSIConsolidationData &d, const double lots)
 
    if(RCO_EntryBuyCross(d, rsi2, rsiPrev))
    {
-      if(!United_MayOpenNewEntry(d.symbol, d.magic, true))
+      if(!United_MayOpenNewEntry(d.symbol, d.magic, true, d.trade, d.closeUnprofitableOnNewSignal))
          return;
       double ask = SymbolInfoDouble(d.symbol, SYMBOL_ASK);
       double sl = ask - slDist;
@@ -372,7 +374,7 @@ void ProcessRSIConsolidation(RSIConsolidationData &d, const double lots)
    }
    else if(RCO_EntrySellCross(d, rsi2, rsiPrev))
    {
-      if(!United_MayOpenNewEntry(d.symbol, d.magic, false))
+      if(!United_MayOpenNewEntry(d.symbol, d.magic, false, d.trade, d.closeUnprofitableOnNewSignal))
          return;
       double bid = SymbolInfoDouble(d.symbol, SYMBOL_BID);
       double sl = bid + slDist;

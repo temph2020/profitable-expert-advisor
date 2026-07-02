@@ -113,6 +113,50 @@ double GetPositionProfitByMagic(string symbol, ulong magic_number)
 }
 
 //+------------------------------------------------------------------+
+//| Net P/L including swap (and commission when exposed by broker)   |
+//+------------------------------------------------------------------+
+double GetPositionNetProfitByMagic(string symbol, ulong magic_number)
+{
+   if(!PositionSelectByMagic(symbol, magic_number))
+      return 0.0;
+
+   double net = PositionGetDouble(POSITION_PROFIT) + PositionGetDouble(POSITION_SWAP);
+   return net;
+}
+
+//+------------------------------------------------------------------+
+//| True when an open position for this magic is not in profit        |
+//+------------------------------------------------------------------+
+bool IsUnprofitablePositionByMagic(string symbol, ulong magic_number)
+{
+   if(!PositionExistsByMagic(symbol, magic_number))
+      return false;
+
+   return (GetPositionNetProfitByMagic(symbol, magic_number) <= 0.0);
+}
+
+//+------------------------------------------------------------------+
+//| Close unprofitable position to make room for a new entry signal  |
+//| Returns true when no position remains (flat or closed successfully)|
+//+------------------------------------------------------------------+
+bool United_PrepareEntrySlot(CTrade &trade_obj, string symbol, ulong magic_number, bool closeUnprofitableOnSignal)
+{
+   if(!PositionExistsByMagic(symbol, magic_number))
+      return true;
+
+   if(!closeUnprofitableOnSignal)
+      return false;
+
+   if(!IsUnprofitablePositionByMagic(symbol, magic_number))
+      return false;
+
+   if(!ClosePositionByMagic(trade_obj, symbol, magic_number))
+      return false;
+
+   return !PositionExistsByMagic(symbol, magic_number);
+}
+
+//+------------------------------------------------------------------+
 //| Get position type by symbol and magic number                     |
 //+------------------------------------------------------------------+
 ENUM_POSITION_TYPE GetPositionTypeByMagic(string symbol, ulong magic_number)

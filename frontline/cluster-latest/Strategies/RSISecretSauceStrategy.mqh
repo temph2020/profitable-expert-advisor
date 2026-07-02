@@ -27,6 +27,7 @@ struct RSISecretSauceOrcData
    datetime            lastRSIReentryTime;
    datetime            lastTradeTime;
    datetime            lastBarTime;
+   bool                closeUnprofitableOnNewSignal;
 };
 
 bool RSS_UpdateIndicators(RSISecretSauceOrcData &d)
@@ -198,7 +199,12 @@ bool RSS_CanOpenNewPosition(RSISecretSauceOrcData &d)
       }
    }
    if(positionCount >= RSS_MaxPositions)
-      return false;
+   {
+      if(!d.closeUnprofitableOnNewSignal)
+         return false;
+      if(!IsUnprofitablePositionByMagic(d.actualSymbol, (ulong)RSS_MagicNumber))
+         return false;
+   }
 
    if(d.lastTradeTime > 0)
    {
@@ -211,6 +217,9 @@ bool RSS_CanOpenNewPosition(RSISecretSauceOrcData &d)
 
 void RSS_OpenPosition(RSISecretSauceOrcData &d, ENUM_POSITION_TYPE type, const double lotSize)
 {
+   if(!United_PrepareEntrySlot(d.trade, d.actualSymbol, (ulong)RSS_MagicNumber, d.closeUnprofitableOnNewSignal))
+      return;
+
    double price = (type == POSITION_TYPE_BUY) ?
                   SymbolInfoDouble(d.actualSymbol, SYMBOL_ASK) :
                   SymbolInfoDouble(d.actualSymbol, SYMBOL_BID);

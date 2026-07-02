@@ -1,0 +1,28 @@
+{
+  "timeframe": "M15",
+  "period": ["2020-01-01", "2026-01-01"],
+  "lot_per_symbol": 0.05,
+  "initial_balance": 10000,
+  "symbols": [
+    {"name": "EURUSD", "max_spread_pips": 6},
+    {"name": "GBPUSD", "max_spread_pips": 8},
+    {"name": "USDJPY", "max_spread_pips": 8},
+    {"name": "USDCHF", "max_spread_pips": 8},
+    {"name": "USDCAD", "max_spread_pips": 8},
+    {"name": "AUDUSD", "max_spread_pips": 8},
+    {"name": "NZDUSD", "max_spread_pips": 10},
+    {"name": "EURGBP", "max_spread_pips": 8},
+    {"name": "EURJPY", "max_spread_pips": 10},
+    {"name": "GBPJPY", "max_spread_pips": 12},
+    {"name": "EURAUD", "max_spread_pips": 10},
+    {"name": "EURNZD", "max_spread_pips": 12},
+    {"name": "AUDJPY", "max_spread_pips": 10},
+    {"name": "CADJPY", "max_spread_pips": 10},
+    {"name": "CHFJPY", "max_spread_pips": 10},
+    {"name": "GBPAUD", "max_spread_pips": 12},
+    {"name": "GBPCAD", "max_spread_pips": 12},
+    {"name": "AUDNZD", "max_spread_pips": 12},
+    {"name": "XAUUSD", "max_spread_pips": 35},
+    {"name": "XAGUSD", "max_spread_pips": 40}
+  ]
+}

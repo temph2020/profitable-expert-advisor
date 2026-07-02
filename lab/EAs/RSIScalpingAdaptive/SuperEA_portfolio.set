@@ -1,0 +1,15 @@
+; RSIScalpingSuper portfolio — attach to EURUSD H1 in Strategy Tester
+LotMultiplier=1.0||1.0||0.100000||10.000000||N
+ScaleLotsToDeposit=true||false||0||true||N
+ReferenceDeposit=10000.0||10000.0||1000.000000||100000.000000||N
+Slippage=3||3||1||30||N
+MaxOpenPositions=9||9||1||90||N
+Enable_EURUSD=true||false||0||true||N
+Enable_GBPUSD=true||false||0||true||N
+Enable_USDJPY=true||false||0||true||N
+Enable_AUDUSD=true||false||0||true||N
+Enable_USDCHF=true||false||0||true||N
+Enable_USDCAD=true||false||0||true||N
+Enable_NZDUSD=true||false||0||true||N
+Enable_EURJPY=true||false||0||true||N
+Enable_XAUUSD=true||false||0||true||N

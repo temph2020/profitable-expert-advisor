@@ -1,0 +1,21 @@
+; SimpleEMA — profitable low-frequency preset (~82 trades / 6y)
+Timeframe=16388
+FastEmaPeriod=10
+SlowEmaPeriod=46
+EntryMode=0
+MinEmaGapPips=1.5
+CooldownBars=8
+UseAtrStops=true
+AtrPeriod=20
+AtrSlMult=2.71
+AtrTpMult=6.36
+ExitOnCross=false
+MaxBarsInTrade=64
+UseTrailing=false
+UseAdxFilter=false
+UseHtfFilter=true
+HtfEmaPeriod=200
+SessionStartHour=8
+SessionEndHour=22
+MaxSpreadPips=6
+LotSize=0.10

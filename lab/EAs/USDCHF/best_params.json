@@ -1,0 +1,39 @@
+{
+  "metrics": {
+    "net_profit": 2632.999999999998,
+    "total_trades": 397,
+    "profit_factor": 3.192540532438441,
+    "win_rate": 80.85642317380352,
+    "max_drawdown_pct": 0.5389938096778568,
+    "sharpe": 4.378118012191507
+  },
+  "params": {
+    "daily_ema_period": 50,
+    "use_daily_bias": true,
+    "htf_zone_bars": 16,
+    "min_break_body_ratio": 0.51,
+    "use_double_trap": false,
+    "trap_lookback": 6,
+    "ny_chaos_start": 13,
+    "ny_chaos_end": 14,
+    "momentum_start": 15,
+    "momentum_end": 2,
+    "ltf_fast_ema": 8,
+    "ltf_slow_ema": 21,
+    "entry_mode": 1,
+    "atr_period": 14,
+    "atr_sl_mult": 2.14,
+    "atr_tp_mult": 3.6,
+    "use_trailing": true,
+    "trail_atr_mult": 1.2,
+    "max_bars_in_trade": 96,
+    "extend_hold_in_momentum": true,
+    "use_compression_filter": true,
+    "compress_atr_ratio": 0.7,
+    "compress_lookback": 48,
+    "cooldown_bars": 4,
+    "max_spread_pips": 8.0,
+    "lot_size": 0.1,
+    "initial_balance": 10000.0
+  }
+}

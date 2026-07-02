@@ -27,7 +27,7 @@ bool InitEMASlopeDistance(string symbol)
    
    esData.trade.SetExpertMagicNumber(ES_MagicNumber);
    esData.trade.SetDeviationInPoints(10);
-   esData.trade.SetTypeFilling(ORDER_FILLING_IOC);
+   esData.trade.SetTypeFillingBySymbol(symbol);
    
    esData.ema_handle = iMA(symbol, ES_Timeframe, ES_EMA_Periode, 0, MODE_EMA, PRICE_CLOSE);
    
@@ -60,7 +60,7 @@ bool ES_IsWeeklyADXTrendFavorable(const ENUM_ORDER_TYPE order_type)
 
    int adx_handle = iADX(esData.symbol, PERIOD_W1, ES_WeeklyADXPeriod);
    if(adx_handle == INVALID_HANDLE)
-      return false;
+      return true;
 
    double adx_buf[], plus_di_buf[], minus_di_buf[];
    ArraySetAsSeries(adx_buf, true);
@@ -73,7 +73,7 @@ bool ES_IsWeeklyADXTrendFavorable(const ENUM_ORDER_TYPE order_type)
    IndicatorRelease(adx_handle);
 
    if(!ok_adx || !ok_plus || !ok_minus)
-      return false;
+      return true;
 
    double adx_value = adx_buf[0];
    double plus_di = plus_di_buf[0];
@@ -229,7 +229,7 @@ void PrüfeTrigger()
          return;
       }
       
-      if(bullish_signal && !PositionExistsByMagic(esData.symbol, (ulong)ES_MagicNumber))
+      if(bullish_signal && United_PrepareEntrySlot(esData.trade, esData.symbol, (ulong)ES_MagicNumber, ES_CloseUnprofitableOnNewSignal))
       {
          if(!ES_IsWeeklyADXTrendFavorable(ORDER_TYPE_BUY))
          {
@@ -242,7 +242,7 @@ void PrüfeTrigger()
             esData.trades_in_current_crossover++;
          }
       }
-      else if(bearish_signal && !PositionExistsByMagic(esData.symbol, (ulong)ES_MagicNumber))
+      else if(bearish_signal && United_PrepareEntrySlot(esData.trade, esData.symbol, (ulong)ES_MagicNumber, ES_CloseUnprofitableOnNewSignal))
       {
          if(!ES_IsWeeklyADXTrendFavorable(ORDER_TYPE_SELL))
          {
@@ -275,6 +275,8 @@ bool PlatziereTrade(ENUM_ORDER_TYPE order_type)
       Print("TRACE: Abbruch — Lot nach Normalisierung ungültig");
       return false;
    }
+
+   esData.trade.SetTypeFillingBySymbol(esData.symbol);
 
    bool success = false;
    

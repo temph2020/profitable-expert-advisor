@@ -157,3 +157,30 @@ int CountPositionsByMagic(string symbol, ulong magic_number)
 }
 
 //+------------------------------------------------------------------+
+//| Align volume to SYMBOL_VOLUME_STEP / min / max (avoids Invalid volume) |
+//+------------------------------------------------------------------+
+double United_NormalizeVolume(const string symbol, double volume)
+{
+   double minLot = SymbolInfoDouble(symbol, SYMBOL_VOLUME_MIN);
+   double maxLot = SymbolInfoDouble(symbol, SYMBOL_VOLUME_MAX);
+   double lotStep = SymbolInfoDouble(symbol, SYMBOL_VOLUME_STEP);
+   if(lotStep <= 0.0)
+      lotStep = 0.01;
+
+   double v = MathFloor(volume / lotStep) * lotStep;
+
+   if(v < minLot)
+      v = minLot;
+   if(v > maxLot)
+      v = maxLot;
+
+   int digits = (int)MathCeil(-MathLog10(lotStep));
+   if(digits < 0)
+      digits = 0;
+   if(digits > 8)
+      digits = 8;
+
+   return NormalizeDouble(v, digits);
+}
+
+//+------------------------------------------------------------------+

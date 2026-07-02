@@ -1,0 +1,117 @@
+# --- Secrets & local config ---
+.env
+.env.*
+!.env.example
+config.yaml
+credentials.json
+*.pem
+*.key
+
+# --- MetaTrader / compiled ---
+*.ex5
+*.ex4
+*.mqproj
+compile.log
+
+# --- MT5 tester output ---
+ReportTester*.html
+ReportTester*.htm
+report.html
+report.png
+**/test-balance.png
+**/test-balance.jpg
+*.ini
+!**/example*.ini
+**/mt5_reports/
+**/mt5_results.json
+
+# --- Generated charts & documents (regenerate locally) ---
+*.pdf
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.svg
+equity_curve.png
+drawdown.png
+monthly_returns.png
+exit_reasons.png
+pnl_distribution.png
+
+# --- Brochure / LaTeX outputs ---
+**/reports/figures/
+**/managed_account_brochure*.tex
+**/ManagedAccount_Brochure*.pdf
+**/UnitedEA_*Brochure*.pdf
+**/代客理财_*.pdf
+
+# --- Generated backtest artifacts ---
+trades.csv
+backtest_report.json
+**/reports/data/
+backtesting/MT5/cluster_audit/reports/**
+!backtesting/MT5/cluster_audit/reports/.gitkeep
+backtesting/MT5/optimization_results/
+lab/**/best_run/
+
+# --- Optional: paper figure exports (regenerate from paper sources) ---
+paper/figures/*.png
+paper/figures/*.pdf
+
+# --- Logs ---
+*.log
+debug.log
+
+# --- Archives & bundles ---
+*.zip
+*.7z
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# --- ML artifacts (retrain via ai/*/README) ---
+**/models/*.onnx
+**/models/*.pkl
+**/models/*.h5
+**/models/*.pb
+*.npy
+*.npz
+
+# --- LaTeX build ---
+*.aux
+*.toc
+*.out
+*.fdb_latexmk
+*.fls
+*.synctex.gz
+*.bbl
+*.blg
+
+# --- IDE / OS ---
+.idea/
+.vscode/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Personal tooling ---
+fast_commit.ps1
+
+# --- Optional: large chart exports (regenerate locally) ---
+# Uncomment if you want a source-only repo:
+# **/report.png
+# **/drawdown.png
+# **/monthly_returns.png

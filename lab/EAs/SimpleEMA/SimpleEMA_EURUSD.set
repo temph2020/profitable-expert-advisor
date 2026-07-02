@@ -1,0 +1,21 @@
+; SimpleEMA — default inputs for EURUSD H1 practice
+; Load in Strategy Tester → Inputs → Load
+
+Timeframe=16385
+MagicNumber=20260620
+FastEmaPeriod=12
+SlowEmaPeriod=26
+MinEmaGapPips=0.0
+LotSize=0.10
+UseAtrStops=true
+AtrPeriod=14
+AtrSlMult=1.5
+AtrTpMult=2.5
+StopLossPips=30
+TakeProfitPips=60
+UseTrailing=false
+TrailPips=20
+ExitOnCross=true
+MaxBarsInTrade=48
+MaxSpreadPips=5
+OneTradeOnly=true

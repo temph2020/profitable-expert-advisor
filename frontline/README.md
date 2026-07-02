@@ -6,18 +6,17 @@ This directory contains production-ready Expert Advisors (EAs) for MetaTrader 5,
 
 ```
 frontline/
-├── MQL5/                    # MetaTrader 5 Expert Advisors
-│   ├── RSIScalpingXAUUSD/   # RSI Scalping for Gold
-│   ├── RSIScalpingBTCUSD/   # RSI Scalping for Bitcoin
-│   ├── RSIScalpingMSFT/     # RSI Scalping for Microsoft
-│   ├── RSIScalpingTSLA/     # RSI Scalping for Tesla
-│   ├── RSICrossOverReversalXAUUSD/  # RSI Crossover Reversal for Gold
-│   ├── RSIMidPointHijackXAUUSD/     # RSI MidPoint Multi-Strategy for Gold
-│   ├── EMASlopeDistanceCocktailXAUUSD/  # EMA Slope Distance Strategy
-│   └── DarvasBoxXAUUSD/     # Darvas Box Breakout Strategy
-└── tradingview/             # TradingView Pine Script strategies
-    └── SSEEMARSICocktail/   # Multi-indicator cocktail strategy
+├── cluster-latest/          # United multi-strategy EA (production cluster)
+├── units/                   # Standalone per-symbol EAs
+├── units-trailing/          # Trailing-stop variants
+├── units-sharpshooter/      # Sharpshooter-tuned variants
+├── units_economic_calendar/ # Calendar-filter variants
+├── united_template/         # Templates for united EAs
+├── cluster-NZDUSD/          # NZDUSD gene-combo cluster (R&D)
+└── tradingview/             # TradingView Pine Script
 ```
+
+See [`docs/STRUCTURE.md`](../docs/STRUCTURE.md) for the full repo map.
 
 ## Available Strategies
 

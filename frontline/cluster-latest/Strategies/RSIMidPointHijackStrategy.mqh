@@ -37,6 +37,11 @@ bool HasPosition(string symbol, int magic)
    return PositionExistsByMagic(symbol, magic);
 }
 
+bool RM_MayEnter(string symbol, int magic)
+{
+   return United_PrepareEntrySlot(rmData.trade, symbol, (ulong)magic, RM_CloseUnprofitableOnNewSignal);
+}
+
 bool HasProfitablePosition(int excludeMagic)
 {
    bool hasProfitable = false;
@@ -113,7 +118,7 @@ void CheckRSIFollowStrategy(string symbol)
    
    if(rmData.rsiOverbought && rmData.lastBarRSI < RM_InpRSIExitLevel)
    {
-      if(!HasPosition(symbol, RM_InpMagicNumberRSIFollow))
+      if(RM_MayEnter(symbol, RM_InpMagicNumberRSIFollow))
       {
          rmData.trade.SetExpertMagicNumber(RM_InpMagicNumberRSIFollow);
          const double vol = RM_NormalizedLot(symbol);
@@ -124,7 +129,7 @@ void CheckRSIFollowStrategy(string symbol)
    }
    else if(rmData.rsiOversold && rmData.lastBarRSI > RM_InpRSIExitLevel)
    {
-      if(!HasPosition(symbol, RM_InpMagicNumberRSIFollow))
+      if(RM_MayEnter(symbol, RM_InpMagicNumberRSIFollow))
       {
          rmData.trade.SetExpertMagicNumber(RM_InpMagicNumberRSIFollow);
          const double vol = RM_NormalizedLot(symbol);
@@ -160,7 +165,7 @@ void CheckRSIReverseStrategy(string symbol)
    
    if(rmData.rsiReverseOverbought && rmData.lastBarRSIReverse < RM_InpRSIReverseCrossLevel)
    {
-      if(!HasPosition(symbol, RM_InpMagicNumberRSIReverse))
+      if(RM_MayEnter(symbol, RM_InpMagicNumberRSIReverse))
       {
          rmData.trade.SetExpertMagicNumber(RM_InpMagicNumberRSIReverse);
          const double vol = RM_NormalizedLot(symbol);
@@ -171,7 +176,7 @@ void CheckRSIReverseStrategy(string symbol)
    }
    else if(rmData.rsiReverseOversold && rmData.lastBarRSIReverse > RM_InpRSIReverseCrossLevel)
    {
-      if(!HasPosition(symbol, RM_InpMagicNumberRSIReverse))
+      if(RM_MayEnter(symbol, RM_InpMagicNumberRSIReverse))
       {
          rmData.trade.SetExpertMagicNumber(RM_InpMagicNumberRSIReverse);
          const double vol = RM_NormalizedLot(symbol);
@@ -233,7 +238,7 @@ void CheckEMACrossStrategy(string symbol)
                }
             }
             
-            if(distanceConditionMet && !HasPosition(symbol, RM_InpMagicNumberEMACross))
+            if(distanceConditionMet && RM_MayEnter(symbol, RM_InpMagicNumberEMACross))
             {
                rmData.trade.SetExpertMagicNumber(RM_InpMagicNumberEMACross);
                const double vol = RM_NormalizedLot(symbol);
@@ -264,7 +269,7 @@ void CheckEMACrossStrategy(string symbol)
                }
             }
             
-            if(distanceConditionMet && !HasPosition(symbol, RM_InpMagicNumberEMACross))
+            if(distanceConditionMet && RM_MayEnter(symbol, RM_InpMagicNumberEMACross))
             {
                rmData.trade.SetExpertMagicNumber(RM_InpMagicNumberEMACross);
                const double vol = RM_NormalizedLot(symbol);
@@ -279,7 +284,7 @@ void CheckEMACrossStrategy(string symbol)
    {
       if(rmData.lastBarEMAPrev < rmData.lastBarClosePrev && rmData.lastBarEMA > rmData.lastBarClose)
       {
-         if(!HasPosition(symbol, RM_InpMagicNumberEMACross))
+         if(RM_MayEnter(symbol, RM_InpMagicNumberEMACross))
          {
             rmData.trade.SetExpertMagicNumber(RM_InpMagicNumberEMACross);
             const double vol = RM_NormalizedLot(symbol);
@@ -289,7 +294,7 @@ void CheckEMACrossStrategy(string symbol)
       }
       else if(rmData.lastBarEMAPrev > rmData.lastBarClosePrev && rmData.lastBarEMA < rmData.lastBarClose)
       {
-         if(!HasPosition(symbol, RM_InpMagicNumberEMACross))
+         if(RM_MayEnter(symbol, RM_InpMagicNumberEMACross))
          {
             rmData.trade.SetExpertMagicNumber(RM_InpMagicNumberEMACross);
             const double vol = RM_NormalizedLot(symbol);

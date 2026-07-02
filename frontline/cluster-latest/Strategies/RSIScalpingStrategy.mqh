@@ -20,6 +20,7 @@ struct RSIScalpingData {
    datetime last_bar_time;
    bool rsi_against_position;
    int bars_against_count;
+   bool closeUnprofitableOnNewSignal;
 };
 
 void ClosePosition(RSIScalpingData& data, int MagicNumber);
@@ -247,7 +248,7 @@ bool InitRSIScalping(RSIScalpingData& data, string symbol, ENUM_TIMEFRAMES TimeF
    
    data.trade.SetExpertMagicNumber(MagicNumber);
    data.trade.SetDeviationInPoints(Slippage);
-   data.trade.SetTypeFilling(ORDER_FILLING_FOK);
+   data.trade.SetTypeFillingBySymbol(symbol);
    
    ArraySetAsSeries(data.rsi_buffer, true);
    data.position_open = false;
@@ -433,8 +434,15 @@ double NormalizeLotSize(string symbol, double lotSize)
 
 void OpenBuyPosition(RSIScalpingData& data, int MagicNumber, double LotSize)
 {
-   if(PositionExistsByMagic(data.symbol, MagicNumber))
+   if(!United_PrepareEntrySlot(data.trade, data.symbol, (ulong)MagicNumber, data.closeUnprofitableOnNewSignal))
       return;
+   if(United_IsGapRiskWindow(data.symbol))
+      return;
+
+   data.position_open = false;
+   data.position_ticket = 0;
+   data.rsi_against_position = false;
+   data.bars_against_count = 0;
    
    // Normalize lot size according to symbol properties
    double normalizedLot = NormalizeLotSize(data.symbol, LotSize);
@@ -458,8 +466,15 @@ void OpenBuyPosition(RSIScalpingData& data, int MagicNumber, double LotSize)
 
 void OpenSellPosition(RSIScalpingData& data, int MagicNumber, double LotSize)
 {
-   if(PositionExistsByMagic(data.symbol, MagicNumber))
+   if(!United_PrepareEntrySlot(data.trade, data.symbol, (ulong)MagicNumber, data.closeUnprofitableOnNewSignal))
       return;
+   if(United_IsGapRiskWindow(data.symbol))
+      return;
+
+   data.position_open = false;
+   data.position_ticket = 0;
+   data.rsi_against_position = false;
+   data.bars_against_count = 0;
    
    // Normalize lot size according to symbol properties
    double normalizedLot = NormalizeLotSize(data.symbol, LotSize);
@@ -606,10 +621,8 @@ void ProcessRSIScalping(RSIScalpingData& data, string symbol, ENUM_TIMEFRAMES Ti
    CheckExistingPosition(data, TimeFrame, MagicNumber, RSI_Oversold, RSI_Overbought,
                         RSI_Target_Buy, RSI_Target_Sell, BarsToWait);
    
-   if(!data.position_open && !PositionExistsByMagic(data.symbol, MagicNumber))
-   {
+   if(!in_pos || data.closeUnprofitableOnNewSignal)
       CheckEntrySignals(data, TimeFrame, MagicNumber, RSI_Oversold, RSI_Overbought, LotSize);
-   }
 }
 
 //+------------------------------------------------------------------+

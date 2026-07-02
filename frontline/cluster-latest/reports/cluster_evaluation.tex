@@ -1,0 +1,221 @@
+
+\documentclass[11pt,a4paper]{ctexart}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{geometry}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\geometry{margin=2.2cm}
+\title{UnitedEA 集群回测综合评估报告\\ \large 2023.07 -- 2026.06 · 逐月诊断 · 回撤期 K 线对比}
+\author{自动生成 · cluster-latest/main.mq5}
+\date{\today}
+
+\begin{document}
+\maketitle
+\tableofcontents
+\newpage
+
+    \section{执行摘要}
+    本报告基于 MT5 策略测试器 HTML 报告（初始资金 \$3,000，杠杆 1:1000，余额复利缩放）对 UnitedEA 集群进行逐机器人、逐月、回撤期市场结构分析。
+
+    \begin{table}[H]
+    \centering
+    \caption{组合层面关键指标}
+    \begin{tabular}{lr}
+    \toprule
+    指标 & 数值 \\
+    \midrule
+    总净盈利 & 3,647,628 USD \\
+    盈利因子 & 1.21 \\
+    夏普比率 & 2.70 \\
+    最大净值回撤 & 48.89\% \\
+    总交易笔数 & 11,669 \\
+    胜率 & 44.95\% \\
+    \bottomrule
+    \end{tabular}
+    \end{table}
+
+    \textbf{核心结论：}
+    \begin{itemize}
+    \item 利润高度集中于 XAUUSD 上的 RM EMA Cross、RSI Scalping XAU、RSI Consolidation；名义多品种分散，实际为黄金 beta 集群。
+    \item 2025 末至 2026 初复利手数放大后，收益与回撤同步膨胀；评估 edge 需配合固定手数对照。
+    \item SimpleTrendline 为\textbf{对冲型}（多空双向），整体虽亏但分方向与品种后可能仍有价值，不宜简单一刀切关闭。
+    \item 最大回撤期 XAUUSD 呈现更高 ATR、更低 ADX（震荡/假突破增多），趋势型与突破型策略易共振亏损。
+    \end{itemize}
+
+    \section{组合曲线与回撤}
+    \begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{figures/equity_drawdown.pdf}
+    \caption{净值曲线与回撤百分比}
+    \end{figure}
+
+    \begin{table}[H]
+    \centering
+    \caption{主要回撤 episode（Top 5）}
+    \begin{tabular}{clllrr}
+    \toprule
+    \# & 起始 & 谷底 & 恢复 & 深度(USD) & 深度(\%) \\
+    \midrule
+    1 & 2026-04-15 & 2026-04-27 & 2026-05-12 & 779,365 & 18.0\% \\
+2 & 2026-05-14 & 2026-06-01 & 2026-06-03 & 751,277 & 17.1\% \\
+3 & 2026-03-24 & 2026-03-31 & 2026-04-06 & 530,292 & 15.9\% \\
+4 & 2026-02-02 & 2026-02-02 & 2026-02-18 & 463,122 & 25.5\% \\
+5 & 2026-02-25 & 2026-02-26 & 2026-03-03 & 425,597 & 21.4\% \\
+    \bottomrule
+    \end{tabular}
+    \end{table}
+
+    \section{逐机器人月度热力与累计贡献}
+    \begin{figure}[H]
+    \centering
+    \includegraphics[width=0.98\textwidth]{figures/monthly_heatmap.pdf}
+    \caption{各机器人逐月净利润热力图（USD）}
+    \end{figure}
+
+    \begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{figures/strategy_contribution.pdf}
+    \caption{各机器人累计净利润贡献}
+    \end{figure}
+
+    \section{SimpleTrendline：对冲型专项分析}
+    SimpleTrendline 基于高周期 MA 交叉趋势线，\textbf{多空双向}触发，设计目标是对冲而非单边趋势押注。
+    回测合计 -656,869 USD，但 2026 年在黄金高位剧烈震荡中大幅回撤。
+
+    \begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{figures/st_long_short_monthly.pdf}
+    \caption{SimpleTrendline 多空方向逐月 P/L 分解}
+    \end{figure}
+
+    \begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{figures/st_by_symbol_monthly.pdf}
+    \caption{SimpleTrendline 分品种（XAU/GER/BTC）逐月 P/L}
+    \end{figure}
+
+    \begin{figure}[H]
+    \centering
+    \includegraphics[width=0.98\textwidth]{figures/top6_monthly.pdf}
+    \caption{核心六机器人逐月 P/L 明细}
+    \end{figure}
+
+    \textbf{建议：}保留策略框架，但 (1) 在 ADX>40 且 ATR 分位>0\% 的强趋势月减少逆势侧仓位；
+    (2) 与 RM/RCO 等同向 exposure 设上限；(3) 2026 类高位宽幅震荡月单独降 LOT。
+
+    \section{回撤期 vs 平稳期：XAUUSD H1 市场结构}
+    从 MT5 拉取 XAUUSD H1。回撤窗口取 Top3 drawdown episode（2026-03, 2026-04, 2026-05, 2026-06），对照期为 2024-03 至 2024-09 平稳盈利段。
+
+    \begin{table}[H]
+    \centering
+    \caption{市场特征对比（亏损月 vs 对照月）}
+    \begin{tabular}{lrr}
+    \toprule
+    特征 & 亏损月均值 & 对照月均值 \\
+    \midrule
+    ADX(14) & 40.2 & 37.7 \\
+    ATR\% & 0.50 & 0.27 \\
+    日收益波动(chop) & 1.60 & 0.88 \\
+    EMA20-50 斜率\% & -0.109 & 0.113 \\
+    \bottomrule
+    \end{tabular}
+    \end{table}
+
+    \begin{figure}[H]
+    \centering
+    \begin{subfigure}{0.48\textwidth}
+    \includegraphics[width=\textwidth]{figures/xau_dd_candles.pdf}
+    \caption{回撤谷底附近 K 线 + EMA}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}{0.48\textwidth}
+    \includegraphics[width=\textwidth]{figures/xau_calm_candles.pdf}
+    \caption{盈利平稳期 K 线 + EMA}
+    \end{subfigure}
+    \caption{XAUUSD H1 形态对比}
+    \end{figure}
+
+    \begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{figures/xau_regime_monthly.pdf}
+    \caption{XAUUSD 逐月 ADX / ATR\% 与组合月度 P/L 对照}
+    \end{figure}
+
+    \section{各机器人逐月问题诊断}
+    \subsubsection{RM MidPoint EMA Cross}
+累计净利润 \textbf{2,306,490} USD。\par\noindent\textbf{逐月问题：}\begin{itemize}\setlength\itemsep{2pt}
+\item 2026-02 单月亏损 -27,934 USD\end{itemize}
+\subsubsection{RSI Scalping XAUUSD}
+累计净利润 \textbf{802,667} USD。\par\noindent\textbf{逐月问题：}\begin{itemize}\setlength\itemsep{2pt}
+\item 2026-03 单月亏损 -8,347 USD\item 月度波动大，手数复利放大后尾部风险显著\end{itemize}
+\subsubsection{RSI Consolidation}
+累计净利润 \textbf{713,392} USD。\par\noindent\textbf{逐月问题：}\begin{itemize}\setlength\itemsep{2pt}
+\item 2026-02 单月亏损 -183,752 USD\end{itemize}
+\subsubsection{RSI Scalping BTCUSD}
+累计净利润 \textbf{316,609} USD。\par\noindent\textbf{逐月问题：}\begin{itemize}\setlength\itemsep{2pt}
+\item 2025-01 单月亏损 -4,375 USD\item 月度波动大，手数复利放大后尾部风险显著\end{itemize}
+\subsubsection{RM MidPoint RSI Follow}
+累计净利润 \textbf{162,787} USD。\par\noindent\textbf{逐月问题：}\begin{itemize}\setlength\itemsep{2pt}
+\item 2026-04 单月亏损 -362,412 USD\item 亏损月份 (25) 多于盈利月份 (11)\item 近 3 个月转弱，存在 regime change 迹象\end{itemize}
+\subsubsection{SuperEMA}
+累计净利润 \textbf{70,153} USD。\par\noindent\textbf{逐月问题：}\begin{itemize}\setlength\itemsep{2pt}
+\item 2026-04 单月亏损 -291,986 USD\item 近 3 个月转弱，存在 regime change 迹象\end{itemize}
+\subsubsection{RM MidPoint RSI Reverse}
+累计净利润 \textbf{61,533} USD。\par\noindent\textbf{逐月问题：}\begin{itemize}\setlength\itemsep{2pt}
+\item 2026-03 单月亏损 -51,238 USD\item 近 3 个月转弱，存在 regime change 迹象\end{itemize}
+\subsubsection{RSI CrossOver Reversal}
+累计净利润 \textbf{59,250} USD。\par\noindent\textbf{逐月问题：}\begin{itemize}\setlength\itemsep{2pt}
+\item 2026-05 单月亏损 -42,049 USD\end{itemize}
+\subsubsection{RSI Scalping TSLA}
+累计净利润 \textbf{56,541} USD。\par\noindent\textbf{逐月问题：}\begin{itemize}\setlength\itemsep{2pt}
+\item 2026-03 单月亏损 -17,900 USD\item 月度波动大，手数复利放大后尾部风险显著\item 近 3 个月转弱，存在 regime change 迹象\end{itemize}
+\subsubsection{RSI Asian AUDUSD}
+累计净利润 \textbf{37,210} USD。\par\noindent\textbf{逐月问题：}\begin{itemize}\setlength\itemsep{2pt}
+\item 2026-05 单月亏损 -11,600 USD\end{itemize}
+\subsubsection{Darvas Box}
+累计净利润 \textbf{20,743} USD。\par\noindent\textbf{逐月问题：}\begin{itemize}\setlength\itemsep{2pt}
+\item 2026-05 单月亏损 -23,932 USD\item 亏损月份 (18) 多于盈利月份 (12)\item 近 3 个月转弱，存在 regime change 迹象\end{itemize}
+\subsubsection{EMA Slope Distance}
+累计净利润 \textbf{17,148} USD。\par\noindent\textbf{逐月问题：}\begin{itemize}\setlength\itemsep{2pt}
+\item 2026-04 单月亏损 -59,622 USD\item 近 3 个月转弱，存在 regime change 迹象\end{itemize}
+\subsubsection{RSI Scalping NVDA}
+累计净利润 \textbf{8,626} USD。\par\noindent\textbf{逐月问题：}\begin{itemize}\setlength\itemsep{2pt}
+\item 2026-01 单月亏损 -13,562 USD\item 月度波动大，手数复利放大后尾部风险显著\end{itemize}
+\subsubsection{USDJPY Buster}
+累计净利润 \textbf{-1,029} USD。\par\noindent\textbf{逐月问题：}\begin{itemize}\setlength\itemsep{2pt}
+\item 2026-05 单月亏损 -131,163 USD\end{itemize}
+\subsubsection{RSI Scalping AAPL}
+累计净利润 \textbf{-3,632} USD。\par\noindent\textbf{逐月问题：}\begin{itemize}\setlength\itemsep{2pt}
+\item 2026-01 单月亏损 -4,760 USD\item 亏损月份 (19) 多于盈利月份 (16)\item 月度波动大，手数复利放大后尾部风险显著\end{itemize}
+\subsubsection{RSI Asian EURUSD}
+累计净利润 \textbf{-11,874} USD。\par\noindent\textbf{逐月问题：}\begin{itemize}\setlength\itemsep{2pt}
+\item 2026-04 单月亏损 -13,390 USD\end{itemize}
+\subsubsection{SimpleTrendline}
+累计净利润 \textbf{-656,869} USD。\par\noindent\textbf{逐月问题：}\begin{itemize}\setlength\itemsep{2pt}
+\item 2026-05 单月亏损 -570,029 USD\item 亏损月份 (19) 多于盈利月份 (17)\item 对冲型策略：多空均有信号，需分方向评估而非整体关停\end{itemize}
+
+    \section{分品种月度 P/L}
+    \begin{figure}[H]
+    \centering
+    \includegraphics[width=0.95\textwidth]{figures/symbol_monthly.pdf}
+    \caption{主要交易品种逐月净利润}
+    \end{figure}
+
+    \section{改进路线图}
+    \begin{enumerate}
+    \item \textbf{P0 风控：}设置 ORCH\_MaxBalanceScale 上限、每机器人 max lot cap；XAUUSD 总 exposure 上限。
+    \item \textbf{P1 精简：}关闭 RRA EURUSD、RS AAPL；SuperEMA 降权；RS NVDA 观察。
+    \item \textbf{P2 SimpleTrendline：}分方向/分品种调参，震荡月（低 ADX + 高 ATR）减半 LOT，勿整体删除。
+    \item \textbf{P3 验证：}固定手数复测 2023--2026；Walk-forward 2026 Q1 作为 OOS。
+    \item \textbf{P4 监控：}月度 dashboard 跟踪 RM EMA Cross 与 ST 多空比、ADX 过滤命中率。
+    \end{enumerate}
+
+    \appendix
+    \section{数据来源}
+    报告 HTML: ReportTester-*.html；K 线: MT5 XAUUSD H1；成交归因基于 order comment FIFO。
+    
+\end{document}
