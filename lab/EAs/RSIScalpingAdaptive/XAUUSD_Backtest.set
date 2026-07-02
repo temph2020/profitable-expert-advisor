@@ -1,0 +1,42 @@
+; RSIScalpingAdaptive XAUUSD — MT5 Genetic Optimization winner (Pass 306)
+; MetaQuotes Demo 2004.01.01–2026.01.01 | Profit $10,470 | PF 1.56 | DD 9.1% | Sharpe 2.79
+; Strategy Tester → Inputs → Load
+;
+TimeFrame=16385||16385||0||16385||N
+RSI_Period=17||17||1||140||N
+RSI_Applied_Price=1||1||0||7||N
+RSI_Overbought=6.0||6.0||1.000000||100.000000||N
+RSI_Oversold=74.0||74.0||1.000000||100.000000||N
+RSI_Target_Buy=79.0||79.0||1.000000||100.000000||N
+RSI_Target_Sell=24.0||24.0||1.000000||100.000000||N
+BarsToWait=12||12||1||50||N
+LotSize=0.1||0.1||0.010000||1.000000||N
+MagicNumber=129102315||129102315||1||1291023150||N
+Slippage=3||3||1||30||N
+EnableAdaptive=false||false||0||true||N
+OptimizationCheckSeconds=3600||3600||60||86400||N
+MinTradesForSelection=8||8||1||80||N
+MaxCombinations=600||600||50||2000||N
+BacktestInitialBalance=10000.0||10000.0||1000.000000||100000.000000||N
+ScoreWeightSharpe=0.35||0.35||0.035000||3.500000||N
+ScoreWeightNetProfit=0.25||0.25||0.025000||2.500000||N
+ScoreWeightProfitFactor=0.15||0.15||0.015000||1.500000||N
+ScoreWeightMaxDD=0.10||0.10||0.010000||1.000000||N
+Search_RSI_Period_Min=12||12||1||120||N
+Search_RSI_Period_Max=18||18||1||180||N
+Search_RSI_Period_Step=2||2||1||20||N
+Search_RSI_Overbought_Min=65.0||65.0||1.000000||100.000000||N
+Search_RSI_Overbought_Max=77.0||77.0||1.000000||100.000000||N
+Search_RSI_Overbought_Step=3.0||3.0||0.300000||30.000000||N
+Search_RSI_Oversold_Min=50.0||50.0||1.000000||100.000000||N
+Search_RSI_Oversold_Max=63.0||63.0||1.000000||100.000000||N
+Search_RSI_Oversold_Step=3.0||3.0||0.300000||30.000000||N
+Search_RSI_Target_Buy_Min=75.0||75.0||1.000000||100.000000||N
+Search_RSI_Target_Buy_Max=86.0||86.0||1.000000||100.000000||N
+Search_RSI_Target_Buy_Step=3.0||3.0||0.300000||30.000000||N
+Search_RSI_Target_Sell_Min=50.0||50.0||1.000000||100.000000||N
+Search_RSI_Target_Sell_Max=63.0||63.0||1.000000||100.000000||N
+Search_RSI_Target_Sell_Step=3.0||3.0||0.300000||30.000000||N
+Search_BarsToWait_Min=1||1||1||10||N
+Search_BarsToWait_Max=4||4||1||40||N
+Search_BarsToWait_Step=1||1||1||10||N

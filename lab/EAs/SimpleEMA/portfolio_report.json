@@ -1,0 +1,304 @@
+{
+  "metrics": {
+    "net_profit": 1847.0,
+    "total_trades": 3222,
+    "profit_factor": 1.05,
+    "win_rate": 36.8,
+    "max_drawdown_pct": 28.41,
+    "profitable_symbols": 8,
+    "symbol_count": 20,
+    "target_met_2000_trades": true,
+    "target_met_profit": true
+  },
+  "per_symbol": [
+    {
+      "symbol": "EURUSD",
+      "enabled": true,
+      "trades": 79,
+      "net_profit": 119.63,
+      "profit_factor": 1.23,
+      "win_rate": 41.8
+    },
+    {
+      "symbol": "GBPUSD",
+      "enabled": true,
+      "trades": 0,
+      "net_profit": 0.0,
+      "profit_factor": 0.0,
+      "win_rate": 0.0
+    },
+    {
+      "symbol": "USDJPY",
+      "enabled": true,
+      "trades": 141,
+      "net_profit": -217.9,
+      "profit_factor": 0.84,
+      "win_rate": 35.5
+    },
+    {
+      "symbol": "USDCHF",
+      "enabled": true,
+      "trades": 70,
+      "net_profit": -167.12,
+      "profit_factor": 0.76,
+      "win_rate": 32.9
+    },
+    {
+      "symbol": "USDCAD",
+      "enabled": true,
+      "trades": 96,
+      "net_profit": 26.33,
+      "profit_factor": 1.05,
+      "win_rate": 36.5
+    },
+    {
+      "symbol": "AUDUSD",
+      "enabled": true,
+      "trades": 45,
+      "net_profit": 31.36,
+      "profit_factor": 1.08,
+      "win_rate": 35.6
+    },
+    {
+      "symbol": "NZDUSD",
+      "enabled": true,
+      "trades": 39,
+      "net_profit": -40.88,
+      "profit_factor": 0.86,
+      "win_rate": 38.5
+    },
+    {
+      "symbol": "EURGBP",
+      "enabled": true,
+      "trades": 24,
+      "net_profit": -165.73,
+      "profit_factor": 0.3,
+      "win_rate": 20.8
+    },
+    {
+      "symbol": "EURJPY",
+      "enabled": true,
+      "trades": 0,
+      "net_profit": 0.0,
+      "profit_factor": 0.0,
+      "win_rate": 0.0
+    },
+    {
+      "symbol": "GBPJPY",
+      "enabled": true,
+      "trades": 0,
+      "net_profit": 0.0,
+      "profit_factor": 0.0,
+      "win_rate": 0.0
+    },
+    {
+      "symbol": "EURCHF",
+      "enabled": true,
+      "trades": 40,
+      "net_profit": -28.83,
+      "profit_factor": 0.91,
+      "win_rate": 35.0
+    },
+    {
+      "symbol": "GBPCHF",
+      "enabled": true,
+      "trades": 59,
+      "net_profit": -488.75,
+      "profit_factor": 0.39,
+      "win_rate": 20.3
+    },
+    {
+      "symbol": "EURAUD",
+      "enabled": true,
+      "trades": 140,
+      "net_profit": 100.38,
+      "profit_factor": 1.09,
+      "win_rate": 40.0
+    },
+    {
+      "symbol": "EURNZD",
+      "enabled": true,
+      "trades": 188,
+      "net_profit": -98.98,
+      "profit_factor": 0.93,
+      "win_rate": 36.7
+    },
+    {
+      "symbol": "EURCAD",
+      "enabled": true,
+      "trades": 121,
+      "net_profit": -557.92,
+      "profit_factor": 0.46,
+      "win_rate": 25.6
+    },
+    {
+      "symbol": "GBPAUD",
+      "enabled": true,
+      "trades": 0,
+      "net_profit": 0.0,
+      "profit_factor": 0.0,
+      "win_rate": 0.0
+    },
+    {
+      "symbol": "GBPNZD",
+      "enabled": true,
+      "trades": 0,
+      "net_profit": 0.0,
+      "profit_factor": 0.0,
+      "win_rate": 0.0
+    },
+    {
+      "symbol": "GBPCAD",
+      "enabled": true,
+      "trades": 0,
+      "net_profit": 0.0,
+      "profit_factor": 0.0,
+      "win_rate": 0.0
+    },
+    {
+      "symbol": "AUDNZD",
+      "enabled": true,
+      "trades": 0,
+      "net_profit": 0.0,
+      "profit_factor": 0.0,
+      "win_rate": 0.0
+    },
+    {
+      "symbol": "AUDCAD",
+      "enabled": true,
+      "trades": 39,
+      "net_profit": -110.28,
+      "profit_factor": 0.58,
+      "win_rate": 23.1
+    },
+    {
+      "symbol": "NZDCAD",
+      "enabled": true,
+      "trades": 92,
+      "net_profit": -110.47,
+      "profit_factor": 0.78,
+      "win_rate": 28.3
+    },
+    {
+      "symbol": "AUDJPY",
+      "enabled": true,
+      "trades": 0,
+      "net_profit": 0.0,
+      "profit_factor": 0.0,
+      "win_rate": 0.0
+    },
+    {
+      "symbol": "NZDJPY",
+      "enabled": true,
+      "trades": 69,
+      "net_profit": -205.8,
+      "profit_factor": 0.59,
+      "win_rate": 30.4
+    },
+    {
+      "symbol": "CADJPY",
+      "enabled": true,
+      "trades": 176,
+      "net_profit": -22.37,
+      "profit_factor": 0.98,
+      "win_rate": 39.2
+    },
+    {
+      "symbol": "CHFJPY",
+      "enabled": true,
+      "trades": 202,
+      "net_profit": 118.79,
+      "profit_factor": 1.08,
+      "win_rate": 41.1
+    },
+    {
+      "symbol": "XAUUSD",
+      "enabled": true,
+      "trades": 760,
+      "net_profit": 3259.98,
+      "profit_factor": 1.14,
+      "win_rate": 40.0
+    },
+    {
+      "symbol": "XAGUSD",
+      "enabled": true,
+      "trades": 191,
+      "net_profit": 402.97,
+      "profit_factor": 1.23,
+      "win_rate": 37.2
+    },
+    {
+      "symbol": "XPTUSD",
+      "enabled": true,
+      "trades": 0,
+      "net_profit": 0.0,
+      "profit_factor": 0.0,
+      "win_rate": 0.0
+    },
+    {
+      "symbol": "US500",
+      "enabled": true,
+      "trades": 0,
+      "net_profit": 0.0,
+      "profit_factor": 0.0,
+      "win_rate": 0.0
+    },
+    {
+      "symbol": "NAS100",
+      "enabled": true,
+      "trades": 0,
+      "net_profit": 0.0,
+      "profit_factor": 0.0,
+      "win_rate": 0.0
+    },
+    {
+      "symbol": "US30",
+      "enabled": true,
+      "trades": 0,
+      "net_profit": 0.0,
+      "profit_factor": 0.0,
+      "win_rate": 0.0
+    },
+    {
+      "symbol": "GER40",
+      "enabled": true,
+      "trades": 0,
+      "net_profit": 0.0,
+      "profit_factor": 0.0,
+      "win_rate": 0.0
+    },
+    {
+      "symbol": "UK100",
+      "enabled": true,
+      "trades": 0,
+      "net_profit": 0.0,
+      "profit_factor": 0.0,
+      "win_rate": 0.0
+    },
+    {
+      "symbol": "JPN225",
+      "enabled": true,
+      "trades": 0,
+      "net_profit": 0.0,
+      "profit_factor": 0.0,
+      "win_rate": 0.0
+    },
+    {
+      "symbol": "BTCUSD",
+      "enabled": true,
+      "trades": 0,
+      "net_profit": 0.0,
+      "profit_factor": 0.0,
+      "win_rate": 0.0
+    },
+    {
+      "symbol": "ETHUSD",
+      "enabled": true,
+      "trades": 651,
+      "net_profit": 2.59,
+      "profit_factor": 1.0,
+      "win_rate": 37.3
+    }
+  ],
+  "enabled_count": 36
+}

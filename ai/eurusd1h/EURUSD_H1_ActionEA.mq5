@@ -1,46 +1,84 @@
 //+------------------------------------------------------------------+
 //|                                          EURUSD_H1_ActionEA.mq5 |
-//|  ai/eurusd1h/main.py — 24 features, 5-class softmax             |
-//|  Classes: 0=HOLD 1=BUY 2=SELL_SHORT 3=CLOSE_LONG 4=CLOSE_SHORT   |
-//|  Entry: strict trio winner among p0,p1,p2 only.                  |
-//|  Exit: unique 5-class argmax != held side (1 long, 2 short).     |
-//|  No SL / TP / ATR stops. Attach EURUSD H1.                        |
+//|  ai/eurusd1h/main.py — 24 features, 5-class softmax ONNX         |
+//|  Train: python main.py → models/EURUSD_H1_action.onnx            |
+//|  Attach EURUSD H1. MT5 optimize via run_mt5_tester.py           |
 //+------------------------------------------------------------------+
 #property copyright "Profitable EA Project"
-#property version   "1.00"
-#property description "EURUSD H1 action ONNX; ordinal entry/exit; no fixed SL/TP"
+#property version   "1.20"
+#property description "EURUSD H1 action ONNX; aggregate + prob/ATR exits (optimizable)"
 
 #include <Trade\Trade.mqh>
 
 #resource "models\\EURUSD_H1_action.onnx" as uchar ExtModel[]
 
 #define FEAT_COUNT 24
+#define PRED_HIST_CAP 32
 #define REL_EPS 1e-9
 
 input group "Model"
 input int    InpLookback = 48;
+input int    InpEntryMode = 1;
+input double InpProbBuy = 0.18;
+input double InpProbSell = 0.18;
+input double InpMinBeatHold = 0.04;
+input int    InpExitMode = 1;              // 0=fixed prob; 1/2=close must beat HOLD and stay-in-trade (2 legacy; old 2 vs-HOLD-only removed)
+input double InpProbCloseL = 0.18;
+input double InpProbCloseS = 0.18;
+input double InpMinCloseBeatHold = 0.03;
+input int    InpMinBarsInTradeModelExit = 1; // min bars before model exit (0=off); pure mode uses 5-class winner
+input bool   InpPureRelative = false;         // true: no prob cutoffs/edges — entry=trio strict winner, exit=5-class strict winner != side
+input bool   InpUseCloseHeadExit = true;    // legacy only when InpPureRelative=false (CL/CS vs HOLD/stay; see InpExitMode)
+input bool   InpUseDirFlipExit = true;     // legacy only when InpPureRelative=false (gap edges InpFlipExitEdge)
+input double InpFlipExitEdge = 0.03;       // legacy dir-flip min gap (ignored when InpPureRelative)
+input int    InpMinBarsAfterExit = 6;      // after any close, wait this many flat bars before a new entry (0=off)
+input int    InpCooldownBarsAfterAdverse = 12; // extra flat-bar pause after adverse (ATR) stop; 0 = use only MinBarsAfterExit
+
+input group "Decision (aggregate + sample, lowers trade churn)"
+input int    InpSampleEveryNBars = 2;     // run ONNX / refresh history every N new bars (>=1)
+input int    InpAggWindow = 4;            // rolling mean over last K samples (>=1)
+input int    InpMinAggSamples = 2;        // need this many samples in window before new entries
+input int    InpMinBarsBetweenEntries = 0; // after an open, wait this many flat bars before next entry (0=off)
+input double InpMinDirEdge = 0.03;        // legacy entry mode 1 only (ignored when InpPureRelative)
+input bool   InpRequireStayOverClose = true; // legacy entry (ignored when InpPureRelative)
+
+input group "Session (match Python SESSION_HOUR_OFFSET)"
 input int    InpSessionHourOffset = 0;
+
+input group "Scaler override (empty = EURUSD_H1_action_meta.json)"
 input string InpFeatMinStr = "";
 input string InpFeatMaxStr = "";
 
-input group "Timing"
-input int    InpMinBarsInTrade = 1;   // model exit only after this many bars in position (0=off)
-
-input group "Trade"
+input group "Risk"
 input double InpLotSize = 0.01;
 input int    InpMagic = 902601;
 input int    InpSlippage = 30;
+
+input group "Hard exits (fixed ATR in price — optional)"
+input bool   InpUseAdverseAtrExit = true;  // stop by adverse move in ATR multiples (off = model-only risk)
+input bool   InpUseProfitAtrExit = false;   // take-profit in ATR multiples (needs InpTakeProfitATR > 0)
+input double InpMaxAdverseATR = 3.5;
+input double InpTakeProfitATR = 0.0;
 
 double g_feat_min[FEAT_COUNT];
 double g_feat_max[FEAT_COUNT];
 
 CTrade trade;
-long   g_onnx = INVALID_HANDLE;
+long g_onnx = INVALID_HANDLE;
 datetime g_last_bar = 0;
 
-void InitDefaultScalerFromMeta()
+double g_pred_hist[PRED_HIST_CAP][5];
+int    g_pred_hist_len = 0;
+double g_smooth[5] = {0.2, 0.2, 0.2, 0.2, 0.2};
+ulong  g_bar_index = 0;
+int    g_entry_cooldown_bars = 0;
+int    g_agg_w = 4;
+int    g_sample_n = 2;
+int    g_min_agg_samples = 2;
+
+void InitDefaultScalerBounds()
 {
-   // EURUSD_H1_action_meta.json scaler_feature_min / max (train fit)
+   // MinMax bounds from ai/eurusd1h/models/EURUSD_H1_action_meta.json
    double def_min[FEAT_COUNT] = {
       0.9539399743080139,
       0.9559400081634521,
@@ -104,10 +142,227 @@ bool ParseFeatCsv(const string s, double &arr[])
 {
    if(StringLen(s) < 3) return false;
    string parts[];
-   if(StringSplit(s, ',', parts) != FEAT_COUNT) return false;
+   int n = StringSplit(s, ',', parts);
+   if(n != FEAT_COUNT) return false;
    for(int i = 0; i < FEAT_COUNT; i++)
       arr[i] = StringToDouble(parts[i]);
    return true;
+}
+
+int OnInit()
+{
+   InitDefaultScalerBounds();
+   trade.SetExpertMagicNumber(InpMagic);
+   trade.SetDeviationInPoints(InpSlippage);
+   trade.SetTypeFilling(ORDER_FILLING_IOC);
+
+   if(StringLen(InpFeatMinStr) > 0 && ParseFeatCsv(InpFeatMinStr, g_feat_min))
+      Print("EURUSD Action EA: loaded InpFeatMinStr (24)");
+   if(StringLen(InpFeatMaxStr) > 0 && ParseFeatCsv(InpFeatMaxStr, g_feat_max))
+      Print("EURUSD Action EA: loaded InpFeatMaxStr (24)");
+
+   g_onnx = OnnxCreateFromBuffer(ExtModel, ONNX_DEBUG_LOGS);
+   if(g_onnx == INVALID_HANDLE)
+   {
+      Print("OnnxCreateFromBuffer failed ", GetLastError());
+      return INIT_FAILED;
+   }
+
+   const long inShape[] = {1, InpLookback, FEAT_COUNT};
+   if(!OnnxSetInputShape(g_onnx, 0, inShape))
+   {
+      Print("OnnxSetInputShape failed ", GetLastError());
+      OnnxRelease(g_onnx);
+      return INIT_FAILED;
+   }
+   const long outShape[] = {1, 5};
+   if(!OnnxSetOutputShape(g_onnx, 0, outShape))
+   {
+      Print("OnnxSetOutputShape failed ", GetLastError());
+      OnnxRelease(g_onnx);
+      return INIT_FAILED;
+   }
+
+   g_agg_w = MathMax(1, MathMin(InpAggWindow, PRED_HIST_CAP));
+   g_sample_n = MathMax(1, InpSampleEveryNBars);
+   g_min_agg_samples = MathMax(1, MathMin(InpMinAggSamples, g_agg_w));
+   g_pred_hist_len = 0;
+   g_bar_index = 0;
+   g_entry_cooldown_bars = 0;
+   for(int k = 0; k < 5; k++)
+      g_smooth[k] = 0.2;
+
+   const bool has_atr = InpUseAdverseAtrExit || (InpUseProfitAtrExit && InpTakeProfitATR > 0.0);
+   const bool has_model_exit = InpPureRelative || InpUseCloseHeadExit || InpUseDirFlipExit;
+   if(!has_atr && !has_model_exit)
+      Print("EURUSD_H1_ActionEA: WARNING — no exit path enabled (enable InpPureRelative and/or legacy exits / ATR)");
+
+   Print("EURUSD_H1_ActionEA: ONNX OK. Chart TF=", EnumToString(PERIOD_CURRENT), "; Lookback=", InpLookback,
+         " sampleEvery=", g_sample_n, " aggWindow=", g_agg_w, " minAggSamples=", g_min_agg_samples,
+         " pureRelative=", InpPureRelative,
+         " entryCooldownBars=", InpMinBarsBetweenEntries, " minDirEdge=", InpMinDirEdge,
+         " stayOverClose=", InpRequireStayOverClose,
+         " exitMode=", InpExitMode, " minBarsInTradeModelExit=", InpMinBarsInTradeModelExit,
+         " closeHeadExit=", InpUseCloseHeadExit, " dirFlipExit=", InpUseDirFlipExit, " flipExitEdge=", InpFlipExitEdge,
+         " minBarsAfterExit=", InpMinBarsAfterExit, " cooldownAfterAdverse=", InpCooldownBarsAfterAdverse,
+         " useAdverseATR=", InpUseAdverseAtrExit, " useProfitATR=", InpUseProfitAtrExit,
+         " maxAdverseATR=", InpMaxAdverseATR, " takeProfitATR=", InpTakeProfitATR);
+   return INIT_SUCCEEDED;
+}
+
+void OnDeinit(const int r)
+{
+   if(g_onnx != INVALID_HANDLE) OnnxRelease(g_onnx);
+}
+
+double AtrNow()
+{
+   double b[];
+   ArraySetAsSeries(b, true);
+   int h = iATR(_Symbol, PERIOD_CURRENT, 14);
+   if(h == INVALID_HANDLE) return 0;
+   if(CopyBuffer(h, 0, 0, 2, b) < 1) { IndicatorRelease(h); return 0; }
+   double v = b[0];
+   IndicatorRelease(h);
+   return v;
+}
+
+bool AdverseExit(const long type, const double open_price)
+{
+   if(!InpUseAdverseAtrExit || InpMaxAdverseATR <= 0.0)
+      return false;
+   double atr = AtrNow();
+   if(atr <= 0) return false;
+   double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+   double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+   if(type == POSITION_TYPE_BUY)
+   {
+      double adv = (open_price - bid) / atr;
+      return adv >= InpMaxAdverseATR;
+   }
+   double adv = (ask - open_price) / atr;
+   return adv >= InpMaxAdverseATR;
+}
+
+bool ProfitExit(const long type, const double open_price)
+{
+   if(!InpUseProfitAtrExit || InpTakeProfitATR <= 0.0)
+      return false;
+   double atr = AtrNow();
+   if(atr <= 0.0) return false;
+   double bid = SymbolInfoDouble(_Symbol, SYMBOL_BID);
+   double ask = SymbolInfoDouble(_Symbol, SYMBOL_ASK);
+   if(type == POSITION_TYPE_BUY)
+      return (bid - open_price) >= InpTakeProfitATR * atr;
+   return (open_price - ask) >= InpTakeProfitATR * atr;
+}
+
+bool ModelCloseLong(const double p0, const double p1, const double p3)
+{
+   if(InpExitMode == 0)
+      return (p3 >= InpProbCloseL);
+   // Modes 1/2 (and default): close-long must beat HOLD and stay-long (BUY). Old mode-2 "vs HOLD only" fired almost every bar on softmax.
+   return (p3 > p0 + InpMinCloseBeatHold && p3 > p1);
+}
+
+bool ModelCloseShort(const double p0, const double p2, const double p4)
+{
+   if(InpExitMode == 0)
+      return (p4 >= InpProbCloseS);
+   return (p4 > p0 + InpMinCloseBeatHold && p4 > p2);
+}
+
+bool ModelDirFlipExitLong(const double p0, const double p1, const double p2)
+{
+   if(!InpUseDirFlipExit)
+      return false;
+   const double e = MathMax(0.0, InpFlipExitEdge);
+   return (p2 > p1 + e && p2 > p0 + InpMinBeatHold);
+}
+
+bool ModelDirFlipExitShort(const double p0, const double p1, const double p2)
+{
+   if(!InpUseDirFlipExit)
+      return false;
+   const double e = MathMax(0.0, InpFlipExitEdge);
+   return (p1 > p2 + e && p1 > p0 + InpMinBeatHold);
+}
+
+int TrioStrictWinner012(const double p0, const double p1, const double p2)
+{
+   if(p0 > p1 + REL_EPS && p0 > p2 + REL_EPS)
+      return 0;
+   if(p1 > p0 + REL_EPS && p1 > p2 + REL_EPS)
+      return 1;
+   if(p2 > p0 + REL_EPS && p2 > p1 + REL_EPS)
+      return 2;
+   return -1;
+}
+
+int FiveStrictWinner01234(const double p0, const double p1, const double p2, const double p3, const double p4)
+{
+   const double p[5] = {p0, p1, p2, p3, p4};
+   int best = 0;
+   for(int k = 1; k < 5; k++)
+      if(p[k] > p[best])
+         best = k;
+   const double m = p[best];
+   int cnt = 0;
+   for(int k = 0; k < 5; k++)
+      if(p[k] + REL_EPS >= m)
+         cnt++;
+   if(cnt != 1)
+      return -1;
+   return best;
+}
+
+int PositionBarsInTrade()
+{
+   if(!PositionSelect(_Symbol))
+      return 0;
+   const datetime tOpen = (datetime)PositionGetInteger(POSITION_TIME);
+   const int sh = iBarShift(_Symbol, PERIOD_CURRENT, tOpen, false);
+   if(sh < 0)
+      return 9999;
+   return sh + 1;
+}
+
+void ApplyExitCooldown(const bool adverse_stop)
+{
+   int b = MathMax(0, InpMinBarsAfterExit);
+   if(adverse_stop)
+      b = MathMax(b, MathMax(0, InpCooldownBarsAfterAdverse));
+   if(b > 0)
+      g_entry_cooldown_bars = MathMax(g_entry_cooldown_bars, b);
+}
+
+void PushPrediction(const double p0, const double p1, const double p2, const double p3, const double p4, const int maxKeep)
+{
+   for(int i = PRED_HIST_CAP - 1; i > 0; i--)
+      for(int k = 0; k < 5; k++)
+         g_pred_hist[i][k] = g_pred_hist[i - 1][k];
+   g_pred_hist[0][0] = p0;
+   g_pred_hist[0][1] = p1;
+   g_pred_hist[0][2] = p2;
+   g_pred_hist[0][3] = p3;
+   g_pred_hist[0][4] = p4;
+   int cap = MathMax(1, MathMin(maxKeep, PRED_HIST_CAP));
+   g_pred_hist_len = MathMin(g_pred_hist_len + 1, cap);
+}
+
+void RecomputeSmooth(const int aggWindow)
+{
+   int w = MathMax(1, MathMin(aggWindow, PRED_HIST_CAP));
+   int n = MathMin(w, g_pred_hist_len);
+   if(n < 1)
+      return;
+   for(int k = 0; k < 5; k++)
+   {
+      double s = 0.0;
+      for(int i = 0; i < n; i++)
+         s += g_pred_hist[i][k];
+      g_smooth[k] = s / (double)n;
+   }
 }
 
 void ScaleFeatures(const float &raw[], float &out[])
@@ -192,9 +447,9 @@ bool PrepareMatrix(matrixf &M)
       double rv7 = rsi7[i];
       double rv21 = rsi21[i];
 
-      double spr = (r0 - rv7) / 50.0;
-      if(spr > 1.0) spr = 1.0;
-      if(spr < -1.0) spr = -1.0;
+      double spread = (r0 - rv7) / 50.0;
+      if(spread > 1.0) spread = 1.0;
+      if(spread < -1.0) spread = -1.0;
       double vel = (r0 - r1) / 25.0;
       double acc = ((r0 - r1) - (r1 - r2)) / 25.0;
       double dist_mid = MathAbs(r0 - 50.0) / 50.0;
@@ -226,7 +481,7 @@ bool PrepareMatrix(matrixf &M)
       raw[12] = (float)(vma > 0 ? (double)vol[i] / vma : 1.0);
       raw[13] = (float)(rv7 / 100.0);
       raw[14] = (float)(rv21 / 100.0);
-      raw[15] = (float)spr;
+      raw[15] = (float)spread;
       raw[16] = (float)vel;
       raw[17] = (float)acc;
       raw[18] = (float)dist_mid;
@@ -244,143 +499,163 @@ bool PrepareMatrix(matrixf &M)
    return true;
 }
 
-int TrioStrictWinner012(const double p0, const double p1, const double p2)
-{
-   if(p0 > p1 + REL_EPS && p0 > p2 + REL_EPS) return 0;
-   if(p1 > p0 + REL_EPS && p1 > p2 + REL_EPS) return 1;
-   if(p2 > p0 + REL_EPS && p2 > p1 + REL_EPS) return 2;
-   return -1;
-}
-
-int FiveStrictWinner01234(const double p0, const double p1, const double p2, const double p3, const double p4)
-{
-   const double p[5] = {p0, p1, p2, p3, p4};
-   int best = 0;
-   for(int k = 1; k < 5; k++)
-      if(p[k] > p[best])
-         best = k;
-   const double m = p[best];
-   int cnt = 0;
-   for(int k = 0; k < 5; k++)
-      if(p[k] + REL_EPS >= m)
-         cnt++;
-   if(cnt != 1)
-      return -1;
-   return best;
-}
-
-bool SelectOurPosition()
-{
-   if(!PositionSelect(_Symbol))
-      return false;
-   if((long)PositionGetInteger(POSITION_MAGIC) != InpMagic)
-      return false;
-   return true;
-}
-
-int PositionBarsInTrade()
-{
-   if(!SelectOurPosition())
-      return 0;
-   const datetime tOpen = (datetime)PositionGetInteger(POSITION_TIME);
-   const int sh = iBarShift(_Symbol, PERIOD_CURRENT, tOpen, false);
-   if(sh < 0)
-      return 9999;
-   return sh + 1;
-}
-
-int OnInit()
-{
-   InitDefaultScalerFromMeta();
-   trade.SetExpertMagicNumber(InpMagic);
-   trade.SetDeviationInPoints(InpSlippage);
-   trade.SetTypeFilling(ORDER_FILLING_IOC);
-
-   if(StringLen(InpFeatMinStr) > 0 && ParseFeatCsv(InpFeatMinStr, g_feat_min))
-      Print("EURUSD Action EA: loaded InpFeatMinStr");
-   if(StringLen(InpFeatMaxStr) > 0 && ParseFeatCsv(InpFeatMaxStr, g_feat_max))
-      Print("EURUSD Action EA: loaded InpFeatMaxStr");
-
-   g_onnx = OnnxCreateFromBuffer(ExtModel, ONNX_DEBUG_LOGS);
-   if(g_onnx == INVALID_HANDLE)
-   {
-      Print("OnnxCreateFromBuffer failed ", GetLastError());
-      return INIT_FAILED;
-   }
-   const long inShape[] = {1, InpLookback, FEAT_COUNT};
-   if(!OnnxSetInputShape(g_onnx, 0, inShape))
-   {
-      Print("OnnxSetInputShape failed ", GetLastError());
-      OnnxRelease(g_onnx);
-      return INIT_FAILED;
-   }
-   const long outShape[] = {1, 5};
-   if(!OnnxSetOutputShape(g_onnx, 0, outShape))
-   {
-      Print("OnnxSetOutputShape failed ", GetLastError());
-      OnnxRelease(g_onnx);
-      return INIT_FAILED;
-   }
-
-   if(_Period != PERIOD_H1)
-      Print("EURUSD_H1_ActionEA: chart period is ", EnumToString((ENUM_TIMEFRAMES)_Period),
-            " — training is H1; mismatch may hurt.");
-
-   Print("EURUSD_H1_ActionEA: ONNX OK. Ordinal entry/exit, no SL/TP. Lookback=", InpLookback);
-   return INIT_SUCCEEDED;
-}
-
-void OnDeinit(const int r)
-{
-   if(g_onnx != INVALID_HANDLE)
-      OnnxRelease(g_onnx);
-}
-
 void OnTick()
 {
    datetime t = iTime(_Symbol, PERIOD_CURRENT, 0);
-   if(t == g_last_bar)
-      return;
+   if(t == g_last_bar) return;
    g_last_bar = t;
 
-   matrixf Min;
-   if(!PrepareMatrix(Min))
+   const bool had_pos = PositionSelect(_Symbol);
+   const bool flat = !had_pos;
+   if(flat && g_entry_cooldown_bars > 0)
+      g_entry_cooldown_bars--;
+
+   g_bar_index++;
+   const bool do_sample = (g_sample_n < 2) || ((g_bar_index % (ulong)g_sample_n) == 0);
+   bool fresh_predict = false;
+
+   if(do_sample)
    {
-      Print("EURUSD Action EA: PrepareMatrix failed");
+      matrixf Min;
+      if(!PrepareMatrix(Min))
+      {
+         Print("EURUSD Action EA: PrepareMatrix failed");
+         if(!had_pos)
+            return;
+      }
+      else
+      {
+         vectorf out;
+         out.Resize(5);
+         if(!OnnxRun(g_onnx, ONNX_NO_CONVERSION, Min, out))
+         {
+            Print("OnnxRun failed ", GetLastError());
+            if(!had_pos)
+               return;
+         }
+         else
+         {
+            PushPrediction(out[0], out[1], out[2], out[3], out[4], g_agg_w);
+            RecomputeSmooth(g_agg_w);
+            fresh_predict = true;
+         }
+      }
+   }
+
+   const double p0 = g_smooth[0];
+   const double p1 = g_smooth[1];
+   const double p2 = g_smooth[2];
+   const double p3 = g_smooth[3];
+   const double p4 = g_smooth[4];
+
+   if(flat)
+   {
+      if(!do_sample || !fresh_predict)
+         return;
+      if(g_pred_hist_len < g_min_agg_samples)
+         return;
+      if(g_entry_cooldown_bars > 0)
+         return;
+
+      if(InpEntryMode == 1)
+      {
+         if(InpPureRelative)
+         {
+            const int w3 = TrioStrictWinner012(p0, p1, p2);
+            if(w3 == 1)
+            {
+               if(trade.Buy(InpLotSize, _Symbol, 0, 0, 0, "EURUSD act BUY"))
+                  g_entry_cooldown_bars = MathMax(0, InpMinBarsBetweenEntries);
+            }
+            else if(w3 == 2)
+            {
+               if(trade.Sell(InpLotSize, _Symbol, 0, 0, 0, "EURUSD act SELL"))
+                  g_entry_cooldown_bars = MathMax(0, InpMinBarsBetweenEntries);
+            }
+         }
+         else
+         {
+            double dir = MathMax(p1, p2);
+            if(dir <= p0 + InpMinBeatHold)
+               return;
+            const double edge = MathMax(0.0, InpMinDirEdge);
+            const bool stay_ok_buy = (!InpRequireStayOverClose) || (p1 > p3);
+            const bool stay_ok_sell = (!InpRequireStayOverClose) || (p2 > p4);
+            if(p1 >= p2 && p1 > p0 + InpMinBeatHold && (p1 - p2) >= edge && stay_ok_buy)
+            {
+               if(trade.Buy(InpLotSize, _Symbol, 0, 0, 0, "EURUSD act BUY"))
+                  g_entry_cooldown_bars = MathMax(0, InpMinBarsBetweenEntries);
+            }
+            else if(p2 > p1 && p2 > p0 + InpMinBeatHold && (p2 - p1) >= edge && stay_ok_sell)
+            {
+               if(trade.Sell(InpLotSize, _Symbol, 0, 0, 0, "EURUSD act SELL"))
+                  g_entry_cooldown_bars = MathMax(0, InpMinBarsBetweenEntries);
+            }
+         }
+      }
+      else
+      {
+         if(p1 >= InpProbBuy && p1 >= p2)
+         {
+            if(trade.Buy(InpLotSize, _Symbol, 0, 0, 0, "EURUSD act BUY"))
+               g_entry_cooldown_bars = MathMax(0, InpMinBarsBetweenEntries);
+         }
+         else if(p2 >= InpProbSell && p2 > p1)
+         {
+            if(trade.Sell(InpLotSize, _Symbol, 0, 0, 0, "EURUSD act SELL"))
+               g_entry_cooldown_bars = MathMax(0, InpMinBarsBetweenEntries);
+         }
+      }
       return;
    }
-   vectorf out;
-   out.Resize(5);
-   if(!OnnxRun(g_onnx, ONNX_NO_CONVERSION, Min, out))
+
+   long typ = (long)PositionGetInteger(POSITION_TYPE);
+   double opn = PositionGetDouble(POSITION_PRICE_OPEN);
+   if(AdverseExit(typ, opn))
    {
-      Print("OnnxRun failed ", GetLastError());
+      if(trade.PositionClose(_Symbol))
+         ApplyExitCooldown(true);
+      return;
+   }
+   if(ProfitExit(typ, opn))
+   {
+      if(trade.PositionClose(_Symbol))
+         ApplyExitCooldown(false);
       return;
    }
 
-   const double p0 = out[0], p1 = out[1], p2 = out[2], p3 = out[3], p4 = out[4];
-
-   if(!SelectOurPosition())
+   const int bars_in = PositionBarsInTrade();
+   const bool allow_model_exit = (InpMinBarsInTradeModelExit <= 0) || (bars_in >= InpMinBarsInTradeModelExit);
+   if(allow_model_exit)
    {
-      const int w3 = TrioStrictWinner012(p0, p1, p2);
-      if(w3 == 1)
-         trade.Buy(InpLotSize, _Symbol, 0, 0, 0, "EURUSD act BUY");
-      else if(w3 == 2)
-         trade.Sell(InpLotSize, _Symbol, 0, 0, 0, "EURUSD act SELL");
-      return;
+      bool want_close = false;
+      if(InpPureRelative)
+      {
+         const int w5 = FiveStrictWinner01234(p0, p1, p2, p3, p4);
+         if(typ == POSITION_TYPE_BUY)
+            want_close = (w5 != -1 && w5 != 1);
+         else
+            want_close = (w5 != -1 && w5 != 2);
+      }
+      else
+      {
+         if(typ == POSITION_TYPE_BUY)
+         {
+            const bool head = InpUseCloseHeadExit && ModelCloseLong(p0, p1, p3);
+            const bool flip = ModelDirFlipExitLong(p0, p1, p2);
+            want_close = (head || flip);
+         }
+         else
+         {
+            const bool head = InpUseCloseHeadExit && ModelCloseShort(p0, p2, p4);
+            const bool flip = ModelDirFlipExitShort(p0, p1, p2);
+            want_close = (head || flip);
+         }
+      }
+      if(want_close)
+      {
+         if(trade.PositionClose(_Symbol))
+            ApplyExitCooldown(false);
+      }
    }
-
-   const bool allow = (InpMinBarsInTrade <= 0) || (PositionBarsInTrade() >= InpMinBarsInTrade);
-   if(!allow)
-      return;
-
-   const int w5 = FiveStrictWinner01234(p0, p1, p2, p3, p4);
-   const long typ = (long)PositionGetInteger(POSITION_TYPE);
-   bool close_it = false;
-   if(typ == POSITION_TYPE_BUY)
-      close_it = (w5 != -1 && w5 != 1);
-   else if(typ == POSITION_TYPE_SELL)
-      close_it = (w5 != -1 && w5 != 2);
-
-   if(close_it)
-      trade.PositionClose(_Symbol);
 }

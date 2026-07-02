@@ -1,0 +1,42 @@
+; RSIScalpingAdaptive XAUUSD — MT5 Genetic Optimization
+; Strategy Tester → Optimization → Genetic algorithm → Load this set
+; Criterion: Balance + Profit Factor (or Custom max)
+;
+TimeFrame=16385||16385||0||16388||N
+RSI_Period=14||10||1||21||Y
+RSI_Applied_Price=1||1||0||7||N
+RSI_Overbought=6.0||4.0||1.0||30.0||Y
+RSI_Oversold=66.0||50.0||2.0||78.0||Y
+RSI_Target_Buy=98.0||75.0||2.0||99.0||Y
+RSI_Target_Sell=52.0||4.0||2.0||65.0||Y
+BarsToWait=12||1||1||12||Y
+LotSize=0.1||0.1||0||0.1||N
+MagicNumber=129102315||129102315||1||1291023150||N
+Slippage=3||3||1||30||N
+EnableAdaptive=false||false||0||true||N
+OptimizationCheckSeconds=3600||3600||60||86400||N
+MinTradesForSelection=8||8||1||80||N
+MaxCombinations=600||600||50||2000||N
+BacktestInitialBalance=10000.0||10000.0||1000.000000||100000.000000||N
+ScoreWeightSharpe=0.35||0.35||0.035000||3.500000||N
+ScoreWeightNetProfit=0.25||0.25||0.025000||2.500000||N
+ScoreWeightProfitFactor=0.15||0.15||0.015000||1.500000||N
+ScoreWeightMaxDD=0.10||0.10||0.010000||1.000000||N
+Search_RSI_Period_Min=12||12||1||120||N
+Search_RSI_Period_Max=18||18||1||180||N
+Search_RSI_Period_Step=2||2||1||20||N
+Search_RSI_Overbought_Min=65.0||65.0||1.000000||100.000000||N
+Search_RSI_Overbought_Max=77.0||77.0||1.000000||100.000000||N
+Search_RSI_Overbought_Step=3.0||3.0||0.300000||30.000000||N
+Search_RSI_Oversold_Min=50.0||50.0||1.000000||100.000000||N
+Search_RSI_Oversold_Max=63.0||63.0||1.000000||100.000000||N
+Search_RSI_Oversold_Step=3.0||3.0||0.300000||30.000000||N
+Search_RSI_Target_Buy_Min=75.0||75.0||1.000000||100.000000||N
+Search_RSI_Target_Buy_Max=86.0||86.0||1.000000||100.000000||N
+Search_RSI_Target_Buy_Step=3.0||3.0||0.300000||30.000000||N
+Search_RSI_Target_Sell_Min=50.0||50.0||1.000000||100.000000||N
+Search_RSI_Target_Sell_Max=63.0||63.0||1.000000||100.000000||N
+Search_RSI_Target_Sell_Step=3.0||3.0||0.300000||30.000000||N
+Search_BarsToWait_Min=1||1||1||10||N
+Search_BarsToWait_Max=4||4||1||40||N
+Search_BarsToWait_Step=1||1||1||10||N

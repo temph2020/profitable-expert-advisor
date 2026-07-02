@@ -1,0 +1,9 @@
+net,trades,pf,fast_ema,slow_ema,trend_leg_bars,min_ema_gap_pips,cross_cooldown,pullback_cooldown,use_pullback,pullback_touch,pullback_adx_min,pullback_min_gap_pips,max_pullbacks_per_leg,atr_period,atr_sl_mult,atr_tp_mult,max_bars_in_trade,htf_ema_period,use_htf_filter,use_adx_filter,adx_period,adx_min,session_start,session_end,max_spread_pips,lot_size,initial_balance
+0.0,0,0.0,10,36,48,1.5,2,3,False,0,0.0,0.0,1,20,2.71,6.36,64,100,True,False,14,18.0,8,22,14,0.05,10000.0
+0.0,0,0.0,10,46,48,1.5,8,3,False,0,0.0,0.0,1,20,2.71,6.36,64,200,True,False,14,18.0,8,22,14,0.05,10000.0
+0.0,0,0.0,7,46,48,1.5,5,3,False,0,0.0,0.0,1,20,2.71,6.36,64,200,True,False,14,18.0,8,22,14,0.05,10000.0
+0.0,0,0.0,10,46,56,1.5,8,6,True,1,22.0,2.0,1,20,2.71,6.36,64,200,True,False,14,18.0,8,22,14,0.05,10000.0
+0.0,0,0.0,8,30,48,1.5,2,2,True,0,0.0,0.0,1,20,2.71,6.36,64,200,True,False,14,18.0,8,22,14,0.05,10000.0
+0.0,0,0.0,9,34,48,1.5,3,2,True,0,0.0,0.0,1,20,2.71,6.36,64,100,True,False,14,18.0,8,22,14,0.05,10000.0
+0.0,0,0.0,10,36,48,1.5,2,3,False,0,0.0,0.0,1,20,2.71,6.36,64,100,True,False,14,18.0,8,22,14,0.05,10000.0
+0.0,0,0.0,11,40,48,1.5,4,3,True,1,20.0,0.0,1,20,2.71,6.36,64,200,True,False,14,18.0,8,22,14,0.05,10000.0

@@ -1,0 +1,50 @@
+; RSIMidPointHijackXAUUSD/main.mq5 — Strategy Tester → Inputs → Load (Genetic optimization)
+; Format: Parameter=Current||Start||Step||Stop||Optimize(Y/N)
+;
+; Baseline from Desktop 123.set (2026.05.13). InpTimeframe fixed at H1 (16385) to avoid invalid ENUM_TIMEFRAMES.
+; RSI level sweeps capped at 100; hour sweeps capped at 23 (123.set used wider columns that are invalid for this EA).
+
+; === General Settings ===
+InpTimeframe=16385||16385||1||16385||N
+InpLotSize=0.1||0.01||0.01||1.0||Y
+InpMagicNumberRSIFollow=1001||1001||1||10010||N
+InpMagicNumberRSIReverse=1002||1002||1||10020||N
+InpMagicNumberEMACross=1003||1003||1||10030||N
+
+; === Strategy Switches ===
+InpEnableRSIFollow=true||false||0||true||N
+InpEnableRSIReverse=true||false||0||true||N
+InpEnableEMACross=true||false||0||true||N
+InpEnableStrategyLock=true||false||0||true||N
+InpLockProfitThreshold=6.0||0.6||0.6||60.0||Y
+InpCloseOppositeTrades=true||false||0||true||N
+
+; === RSI Follow Strategy ===
+InpRSIPeriod=32||8||2||96||Y
+InpRSIOverbought=78||60||1||95||Y
+InpRSIOversold=46||5||1||45||Y
+InpRSIExitLevel=44||10||1||90||Y
+InpRSIFollowStartHour=23||0||1||23||Y
+InpRSIFollowEndHour=8||0||1||23||Y
+InpRSIFollowCloseOutsideHours=false||false||0||true||N
+
+; === RSI Reverse Strategy ===
+InpRSIReversePeriod=59||14||2||96||Y
+InpRSIReverseOverbought=51||55||1||95||Y
+InpRSIReverseOversold=49||5||1||50||Y
+InpRSIReverseCrossLevel=53||45||1||70||Y
+InpRSIReverseExitLevel=48||10||1||90||Y
+InpRSIReverseStartHour=7||0||1||23||Y
+InpRSIReverseEndHour=13||0||1||23||Y
+InpRSIReverseCloseOutsideHours=false||false||0||true||N
+InpRSIReverseCooldownBars=15||1||1||150||Y
+InpRSIReverseCooldownOnLoss=true||false||0||true||N
+
+; === EMA Cross Strategy ===
+InpEMAPeriod=120||20||5||200||Y
+InpEMACrossStartHour=8||0||1||23||Y
+InpEMACrossEndHour=14||0||1||23||Y
+InpEMACrossCloseOutsideHours=true||false||0||true||N
+InpUseEMADistanceEntry=true||false||0||true||N
+InpEMADistancePips=160.0||16.0||16.0||1600.0||Y
+InpEMADistancePeriod=26||5||1||60||Y

@@ -45,6 +45,29 @@ int TimeHour(datetime when = 0)
    return dt.hour;
 }
 
+double RC_NormalizeLot(const string sym, const double lots)
+{
+   const double mn = SymbolInfoDouble(sym, SYMBOL_VOLUME_MIN);
+   const double mx = SymbolInfoDouble(sym, SYMBOL_VOLUME_MAX);
+   double step = SymbolInfoDouble(sym, SYMBOL_VOLUME_STEP);
+   if(step <= 0.0)
+      step = 0.01;
+   double v = MathMax(lots, mn);
+   v = MathMin(v, mx);
+   return NormalizeDouble(MathFloor(v / step + 0.5) * step, 2);
+}
+
+bool RC_IsTrendStrong(const double emaSlope, const double priceToEmaDistance)
+{
+   if(!RC_UseTrendStrengthFilter)
+      return false;
+   const bool slopeStrong = (RC_emaSlopeThreshold > 0.0)
+      && (MathAbs(emaSlope) > RC_emaSlopeThreshold);
+   const bool distanceStrong = (RC_emaDistanceThreshold > 0.0)
+      && (MathAbs(priceToEmaDistance) > RC_emaDistanceThreshold);
+   return slopeStrong || distanceStrong;
+}
+
 bool InitRSICrossOverReversal(string symbol)
 {
    WeekDays_Init();
@@ -79,6 +102,8 @@ bool InitRSICrossOverReversal(string symbol)
    }
    
    rcData.trade.SetExpertMagicNumber(RC_MagicNumber);
+   rcData.trade.SetDeviationInPoints(RC_slippage);
+   rcData.trade.SetTypeFillingBySymbol(symbol);
    rcData.isInitialized = true;
    Print("RSICrossOverReversal: Successfully initialized for symbol '", symbol, "'");
    return true;
@@ -147,9 +172,12 @@ void ProcessRSICrossOverReversal(string symbol)
       return;
       
    rcData.symbol = symbol; // Update symbol in case it changed
-   if(rcData.bartime == iTime(rcData.symbol, RC_BarTimeFrame, 0))
+   const datetime barTime = iTime(rcData.symbol, RC_BarTimeFrame, 0);
+   if(barTime == 0)
       return;
-   rcData.bartime = iTime(rcData.symbol, RC_BarTimeFrame, 0);
+   if(rcData.bartime == barTime)
+      return;
+   rcData.bartime = barTime;
    
    double rsi[];
    if(CopyBuffer(rcData.rsiHandle, 0, 0, 2, rsi) <= 0)
@@ -209,7 +237,7 @@ void ProcessRSICrossOverReversal(string symbol)
    ApplyTrailingStop();
    
    bool cooldownPassed = (currentTime - rcData.lastTradeTime) >= RC_cooldownSeconds;
-   bool isTrendStrong = MathAbs(emaSlope) > RC_emaSlopeThreshold || MathAbs(priceToEmaDistance) > RC_emaDistanceThreshold;
+   const bool isTrendStrong = RC_IsTrendStrong(emaSlope, priceToEmaDistance);
    
    if(isBuyPosition && currentRSI > RC_exitBuyRSI)
    {
@@ -229,25 +257,36 @@ void ProcessRSICrossOverReversal(string symbol)
       rcData.lastTradeTime = currentTime;
    }
 
-   if(!isTrendStrong &&
-      currentRSI < RC_overboughtLevel - RC_entryRSISellSpread && rcData.previousRSIDef >= RC_overboughtLevel &&
-      !isSellPosition && !hasPosition && cooldownPassed)
+   hasPosition = PositionExistsByMagic(rcData.symbol, RC_MagicNumber);
+   isBuyPosition = false;
+   isSellPosition = false;
+   if(hasPosition && PositionSelectByMagic(rcData.symbol, RC_MagicNumber))
    {
-      rcData.trade.SetExpertMagicNumber(RC_MagicNumber);
-      if(rcData.trade.Sell(g_RC_LotSize, rcData.symbol, 0.0, 0.0, 0.0, "Sell Order"))
-      {
-         rcData.lastTradeTime = currentTime;
-      }
+      const ENUM_POSITION_TYPE positionType = (ENUM_POSITION_TYPE)PositionGetInteger(POSITION_TYPE);
+      if(positionType == POSITION_TYPE_BUY)
+         isBuyPosition = true;
+      else if(positionType == POSITION_TYPE_SELL)
+         isSellPosition = true;
    }
 
-   if(!isTrendStrong &&
-      currentRSI > RC_oversoldLevel + RC_entryRSIBuySpread && rcData.previousRSIDef <= RC_oversoldLevel &&
-      !isBuyPosition && !hasPosition && cooldownPassed)
+   const double lots = RC_NormalizeLot(rcData.symbol, g_RC_LotSize);
+   if(lots > 0.0 && !isTrendStrong && cooldownPassed && !hasPosition)
    {
-      rcData.trade.SetExpertMagicNumber(RC_MagicNumber);
-      if(rcData.trade.Buy(g_RC_LotSize, rcData.symbol, 0.0, 0.0, 0.0, "Buy Order"))
+      if(currentRSI < RC_overboughtLevel - RC_entryRSISellSpread
+         && rcData.previousRSIDef >= RC_overboughtLevel
+         && !isSellPosition)
       {
-         rcData.lastTradeTime = currentTime;
+         rcData.trade.SetExpertMagicNumber(RC_MagicNumber);
+         if(rcData.trade.Sell(lots, rcData.symbol, 0.0, 0.0, 0.0, "Sell Order"))
+            rcData.lastTradeTime = currentTime;
+      }
+      else if(currentRSI > RC_oversoldLevel + RC_entryRSIBuySpread
+         && rcData.previousRSIDef <= RC_oversoldLevel
+         && !isBuyPosition)
+      {
+         rcData.trade.SetExpertMagicNumber(RC_MagicNumber);
+         if(rcData.trade.Buy(lots, rcData.symbol, 0.0, 0.0, 0.0, "Buy Order"))
+            rcData.lastTradeTime = currentTime;
       }
    }
    

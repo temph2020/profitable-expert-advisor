@@ -5,7 +5,7 @@
 //+------------------------------------------------------------------+
 #property copyright "Copyright 2025, MetaQuotes Ltd."
 #property link      "https://www.mql5.com"
-#property version   "1.21"
+#property version   "1.26"
 #property strict
 #property description "LOT_* nominal at ORCH_ReferenceBalance; scale = balance/equity ÷ reference (clamped). No performance-evaluator ranking."
 
@@ -14,6 +14,7 @@
 #include <Indicators\Trend.mqh>
 #include <Indicators\Volumes.mqh>
 #include "MagicNumberHelpers.mqh"
+#include "GapGuard.mqh"
 #define UNITED_V2_DYNAMIC_LOTS
 double               g_DB_LotSize;
 // Include strategy implementations early so structs are available
@@ -27,6 +28,9 @@ double               g_DB_LotSize;
 #include "Strategies/RSIConsolidationStrategy.mqh"
 #include "Strategies/SimpleTrendlineStrategy.mqh"
 #include "Strategies/RSISecretSauceStrategy.mqh"
+#include "Strategies/USDJPYBusterStrategy.mqh"
+#include "Strategies/XAUBearTrendStrategy.mqh"
+#include "Strategies/XAUMomentumBreakdownStrategy.mqh"
 
 //+------------------------------------------------------------------+
 //| Global Lot Size Variables (for dynamic lot sizing)               |
@@ -36,6 +40,7 @@ double g_RC_LotSize;  // RSI CrossOver Reversal lot size
 double g_RM_LotSize;  // RSI MidPoint Hijack lot size
 
 double g_Pos_RS_APPL;
+double g_Pos_RS_ADBE;
 double g_Pos_RS_BTCUSD;
 double g_Pos_RS_NVDA;
 double g_Pos_RS_TSLA;
@@ -49,10 +54,78 @@ double g_Pos_ST_BTCUSD;
 double g_Pos_ST_XAUUSD;
 double g_Pos_ST_GER40;
 double g_RSS_LotSize;
+double g_Pos_UB_USDJPY;
+double g_Pos_XBT_XAUUSD;
+double g_Pos_XMB_XAUUSD;
+double g_Pos_RRA_GBPUSD;
+double g_Pos_GB_GER40;
+double g_Pos_RS_NAS100;
+double g_Pos_RS_US500;
+double g_Pos_RRA_USDCHF;
+double g_Pos_RRA_NZDUSD;
+double g_Pos_NB_NAS100;
+double g_Pos_U5B_US500;
+double g_Pos_RS_US30;
+double g_Pos_RS_XAGUSD;
+double g_Pos_RS_EURJPY;
+double g_Pos_RS_GBPJPY;
+double g_Pos_U30B_US30;
+double g_Pos_UKB_UK100;
+double g_Pos_XGB_XAGUSD;
+double g_Pos_RS_F;
+double g_Pos_RS_SOFI;
+double g_Pos_RS_SNAP;
+double g_Pos_RS_WBD;
 
-bool United_MayOpenNewEntry(const string symbol, const ulong magic, const bool isBuy)
+input group "=== Signal Replacement — close unprofitable on new signal (per strategy) ==="
+input bool DB_CloseUnprofitableOnNewSignal = false;
+input bool ES_CloseUnprofitableOnNewSignal = true;   // audit 2026-07 +174 net / +1.46 sharpe
+input bool RC_CloseUnprofitableOnNewSignal = false;
+input bool RM_CloseUnprofitableOnNewSignal = false;
+input bool RS_APPL_CloseUnprofitableOnNewSignal = false;
+input bool RS_ADBE_CloseUnprofitableOnNewSignal = false;
+input bool RS_BTCUSD_CloseUnprofitableOnNewSignal = false;
+input bool RS_NVDA_CloseUnprofitableOnNewSignal = false;
+input bool RS_TSLA_CloseUnprofitableOnNewSignal = false;   // audit 2026-07 NEUTRAL (-11 net)
+input bool RS_XAUUSD_CloseUnprofitableOnNewSignal = true;   // audit 2026-07 +677 net / +1.92 sharpe
+input bool RS_MU_CloseUnprofitableOnNewSignal = false;
+input bool RRA_EURUSD_CloseUnprofitableOnNewSignal = false;
+input bool RRA_AUDUSD_CloseUnprofitableOnNewSignal = false;
+input bool SE_CloseUnprofitableOnNewSignal = false;
+input bool RCO_CloseUnprofitableOnNewSignal = false;
+input bool ST_BTC_CloseUnprofitableOnNewSignal = false;
+input bool ST_XAU_CloseUnprofitableOnNewSignal = false;
+input bool ST_GER_CloseUnprofitableOnNewSignal = false;
+input bool RSS_CloseUnprofitableOnNewSignal = false;
+input bool UB_CloseUnprofitableOnNewSignal = false;
+input bool XBT_CloseUnprofitableOnNewSignal = false;
+input bool XMB_CloseUnprofitableOnNewSignal = false;
+input bool RRA_GBPUSD_CloseUnprofitableOnNewSignal = false;
+input bool GB_CloseUnprofitableOnNewSignal = false;
+input bool RS_NAS100_CloseUnprofitableOnNewSignal = false;
+input bool RS_US500_CloseUnprofitableOnNewSignal = false;
+input bool RRA_USDCHF_CloseUnprofitableOnNewSignal = false;
+input bool RRA_NZDUSD_CloseUnprofitableOnNewSignal = false;
+input bool NB_CloseUnprofitableOnNewSignal = false;
+input bool U5B_CloseUnprofitableOnNewSignal = false;
+input bool RS_US30_CloseUnprofitableOnNewSignal = true;   // audit 2026-07 +92 net / +0.68 sharpe
+input bool RS_XAGUSD_CloseUnprofitableOnNewSignal = false;
+input bool RS_EURJPY_CloseUnprofitableOnNewSignal = false;
+input bool RS_GBPJPY_CloseUnprofitableOnNewSignal = false;
+input bool U30B_CloseUnprofitableOnNewSignal = false;
+input bool UKB_CloseUnprofitableOnNewSignal = false;
+input bool XGB_CloseUnprofitableOnNewSignal = false;
+input bool RS_F_CloseUnprofitableOnNewSignal = false;
+input bool RS_SOFI_CloseUnprofitableOnNewSignal = false;
+input bool RS_SNAP_CloseUnprofitableOnNewSignal = false;
+input bool RS_WBD_CloseUnprofitableOnNewSignal = false;
+
+bool United_MayOpenNewEntry(const string symbol, const ulong magic, const bool isBuy, CTrade &trade,
+                              const bool closeUnprofitableOnNewSignal)
 {
-   if(PositionExistsByMagic(symbol, magic))
+   if(!United_PrepareEntrySlot(trade, symbol, magic, closeUnprofitableOnNewSignal))
+      return false;
+   if(United_IsGapRiskWindow(symbol))
       return false;
    return true;
 }
@@ -65,48 +138,104 @@ input bool EnableDarvasBox = true;
 input bool EnableEMASlopeDistance = true;
 input bool EnableRSICrossOverReversal = true;
 input bool EnableRSIMidPointHijack = true;
-input bool EnableRSIScalpingAPPL = true;
-input bool EnableRSIScalpingBTCUSD = false;
+input bool EnableRSIScalpingAPPL = false;
+input bool EnableRSIScalpingADBE = false;
+input bool EnableRSIScalpingBTCUSD = true;
 input bool EnableRSIScalpingNVDA = true;
 input bool EnableRSIScalpingTSLA = true;
-input bool EnableRSIScalpingXAUUSD = false;
-input bool EnableRSIScalpingMU = true;
-input bool EnableSuperEMA = false;
+input bool EnableRSIScalpingXAUUSD = true;
+input bool EnableRSIScalpingMU = false;  // high share price (~$1000+) — margin risk
+input bool EnableSuperEMA = true;
 input bool EnableRSIConsolidation = false;
-input bool EnableRSIReversalAsianEURUSD = true;
+input bool EnableRSIReversalAsianEURUSD = false;
 input bool EnableRSIReversalAsianAUDUSD = true;
-input bool EnableSimpleTrendlineBTCUSD = false;
-input bool EnableSimpleTrendlineXAUUSD = false;
+input bool EnableSimpleTrendlineBTCUSD = true;
+input bool EnableSimpleTrendlineXAUUSD = true;
 input bool EnableSimpleTrendlineGER40 = false;
 input bool EnableRSISecretSauce = false;
+input bool EnableUSDJPYBuster = true;
+input bool EnableXAUBearTrend = false;
+input bool EnableXAUMomentumBreakdown = false;
+input bool EnableRSIReversalAsianGBPUSD = true;
+input bool EnableGER40Buster = true;
+input bool EnableRSIScalpingNAS100 = true;
+input bool EnableRSIScalpingUS500 = false;
+input bool EnableRSIReversalAsianUSDCHF = false;
+input bool EnableRSIReversalAsianNZDUSD = false;
+input bool EnableNAS100Buster = false;
+input bool EnableUS500Buster = true;
+input bool EnableRSIScalpingUS30 = true;
+input bool EnableRSIScalpingXAGUSD = false;
+input bool EnableRSIScalpingEURJPY = false;
+input bool EnableRSIScalpingGBPJPY = false;
+input bool EnableUS30Buster = false;
+input bool EnableUK100Buster = true;
+input bool EnableXAGUSDBuster = false;
+input bool EnableRSIScalpingF = false;
+input bool EnableRSIScalpingSOFI = false;
+input bool EnableRSIScalpingSNAP = false;
+input bool EnableRSIScalpingWBD = false;
 input bool OPT_GuardOptimizationMode = true; // legacy compatibility with 123.set
 
 input group "=== Centralized Lot Size (Granular Per Robot) ==="
 input double LOT_DB_DarvasBox = 0.01;
-input double LOT_ES_EMASlopeDistance = 0.02;
-input double LOT_RC_RSICrossOver = 0.01;
+input double LOT_ES_EMASlopeDistance = 0.07;
+input double LOT_RC_RSICrossOver = 0.1;
 input double LOT_RM_RSIMidPointHijack = 0.01;
-input double LOT_RS_APPL = 25.0;
-input double LOT_RS_BTCUSD = 0.1;
-input double LOT_RS_NVDA = 25.0;
-input double LOT_RS_TSLA = 5.0;
-input double LOT_RS_XAUUSD = 0.27;
+input double LOT_RS_APPL = 5;
+input double LOT_RS_ADBE = 5;
+input double LOT_RS_BTCUSD = 0.06;
+input double LOT_RS_NVDA = 5;
+input double LOT_RS_TSLA = 5;
+input double LOT_RS_XAUUSD = 0.04;
 input double LOT_RS_MU = 5.0;
-input double LOT_RRA_EURUSD = 0.1;
-input double LOT_RRA_AUDUSD = 0.1;
+input double LOT_RRA_EURUSD = 0.03;
+input double LOT_RRA_AUDUSD = 0.05;
 input double LOT_SE_SuperEMA = 0.01;
 input double LOT_RCO_RSIConsolidation = 0.1;
-input double LOT_ST_BTCUSD = 0.1;
-input double LOT_ST_XAUUSD = 0.1;
+input double LOT_ST_BTCUSD = 0.01;
+input double LOT_ST_XAUUSD = 0.01;
 input double LOT_ST_GER40 = 0.10;
 input double LOT_RSS_SecretSauce = 0.1;
+input double LOT_UB_USDJPY = 0.03;
+input double LOT_XBT_XAUUSD = 0.02;
+input double LOT_XMB_XAUUSD = 0.02;
+input double LOT_RRA_GBPUSD = 0.03;
+input double LOT_GB_GER40 = 0.01;
+input double LOT_RS_NAS100 = 0.03;
+input double LOT_RS_US500 = 0.1;
+input double LOT_RRA_USDCHF = 0.1;
+input double LOT_RRA_NZDUSD = 0.1;
+input double LOT_NB_NAS100 = 0.05;
+input double LOT_U5B_US500 = 0.05;
+input double LOT_RS_US30 = 0.02;
+input double LOT_RS_XAGUSD = 0.05;
+input double LOT_RS_EURJPY = 0.08;
+input double LOT_RS_GBPJPY = 0.08;
+input double LOT_U30B_US30 = 0.05;
+input double LOT_UKB_UK100 = 0.01;
+input double LOT_XGB_XAGUSD = 0.05;
+input double LOT_RS_F = 10.0;    // ~$14 stock, ~$7 margin @ 10 sh
+input double LOT_RS_SOFI = 10.0;
+input double LOT_RS_SNAP = 10.0;
+input double LOT_RS_WBD = 10.0;
 
 input group "=== Balance-based position sizing ==="
 input bool   ORCH_ScaleLotsByBalance = true;
 input bool   ORCH_UseEquityInsteadOfBalance = false;
-input double ORCH_ReferenceBalance = 1000.0;
+input double ORCH_ReferenceBalance = 3000.0;
 input double ORCH_MinBalanceScale = 0.1;
 input double ORCH_MaxBalanceScale = 100000.0;
+
+input group "=== Gap Loss Prevention (跳空) ==="
+input bool   GAP_Enable = false;  // match 123.set / audit backtests (true = more session flats)
+input bool   GAP_CloseBeforeSessionEnd = true;
+input int    GAP_MinutesBeforeClose = 15;
+input bool   GAP_CloseBeforeWeekend = true;
+input int    GAP_FridayCloseHour = 20;
+input bool   GAP_CloseOnBarGapThroughSL = true;
+input double GAP_MinGapPoints = 0.0;
+input int    GAP_EquityDailyFlatHour = 21;
 
 //+------------------------------------------------------------------+
 //| Strategy 1: DarvasBoxXAUUSD                                      |
@@ -258,7 +387,7 @@ input int    RM_InpEMADistancePeriod = 26;
 //|   4. Use the exact symbol name shown                              |
 //+------------------------------------------------------------------+
 input group "=== RSI Scalping APPL (AAPL) - Pepperstone US ==="
-input string RS_APPL_Symbol = "AAPL";
+input string RS_APPL_Symbol = "AAPL.NAS";
 input ENUM_TIMEFRAMES RS_APPL_TimeFrame = PERIOD_M10;
 input int    RS_APPL_RSI_Period = 14;
 input ENUM_APPLIED_PRICE RS_APPL_RSI_Applied_Price = PRICE_CLOSE;
@@ -270,6 +399,20 @@ input int    RS_APPL_BarsToWait = 7;
 input double RS_APPL_LotSize = 25;
 input int    RS_APPL_MagicNumber = 20001;
 input int    RS_APPL_Slippage = 3;
+
+input group "=== RSI Scalping ADBE - Pepperstone US ==="
+input string RS_ADBE_Symbol = "ADBE.NAS";
+input ENUM_TIMEFRAMES RS_ADBE_TimeFrame = (ENUM_TIMEFRAMES)6;
+input int    RS_ADBE_RSI_Period = 15;
+input ENUM_APPLIED_PRICE RS_ADBE_RSI_Applied_Price = PRICE_OPEN;
+input double RS_ADBE_RSI_Overbought = 16;
+input double RS_ADBE_RSI_Oversold = 42;
+input double RS_ADBE_RSI_Target_Buy = 67;
+input double RS_ADBE_RSI_Target_Sell = 62;
+input int    RS_ADBE_BarsToWait = 8;
+input double RS_ADBE_LotSize = 5.0;
+input int    RS_ADBE_MagicNumber = 12345;
+input int    RS_ADBE_Slippage = 3;
 
 input group "=== RSI Scalping BTCUSD ==="
 input string RS_BTCUSD_Symbol = "BTCUSD";  // Pepperstone may use: "BTCUSD", "BTC/USD", or "BTCUSD.c"
@@ -286,7 +429,7 @@ input int    RS_BTCUSD_MagicNumber = 123459123;
 input int    RS_BTCUSD_Slippage = 3;
 
 input group "=== RSI Scalping NVDA - Pepperstone US ==="
-input string RS_NVDA_Symbol = "NVDA";
+input string RS_NVDA_Symbol = "NVDA.NAS";
 input ENUM_TIMEFRAMES RS_NVDA_TimeFrame = PERIOD_M15;
 input int    RS_NVDA_RSI_Period = 8;
 input ENUM_APPLIED_PRICE RS_NVDA_RSI_Applied_Price = PRICE_CLOSE;
@@ -300,7 +443,7 @@ input int    RS_NVDA_MagicNumber = 20003;
 input int    RS_NVDA_Slippage = 3;
 
 input group "=== RSI Scalping TSLA - Pepperstone US ==="
-input string RS_TSLA_Symbol = "TSLA";
+input string RS_TSLA_Symbol = "TSLA.NAS";
 input ENUM_TIMEFRAMES RS_TSLA_TimeFrame = PERIOD_H1;
 input int    RS_TSLA_RSI_Period = 14;
 input ENUM_APPLIED_PRICE RS_TSLA_RSI_Applied_Price = PRICE_CLOSE;
@@ -328,7 +471,7 @@ input int    RS_XAUUSD_MagicNumber = 129102315;
 input int    RS_XAUUSD_Slippage = 3;
 
 input group "=== RSI Scalping MU ==="
-input string RS_MU_Symbol = "MU";
+input string RS_MU_Symbol = "MU.NAS";
 input ENUM_TIMEFRAMES RS_MU_TimeFrame = PERIOD_M20;
 input int    RS_MU_RSI_Period = 14;
 input ENUM_APPLIED_PRICE RS_MU_RSI_Applied_Price = PRICE_CLOSE;
@@ -340,6 +483,84 @@ input int    RS_MU_BarsToWait = 34;
 input double RS_MU_LotSize = 5.0;
 input int    RS_MU_MagicNumber = 129102316;
 input int    RS_MU_Slippage = 3;
+
+input group "=== RSI Scalping NAS100 ==="
+input string RS_NAS100_Symbol = "NAS100";
+input ENUM_TIMEFRAMES RS_NAS100_TimeFrame = PERIOD_H1;
+input int    RS_NAS100_RSI_Period = 14;
+input ENUM_APPLIED_PRICE RS_NAS100_RSI_Applied_Price = PRICE_CLOSE;
+input double RS_NAS100_RSI_Overbought = 58;
+input double RS_NAS100_RSI_Oversold = 42;
+input double RS_NAS100_RSI_Target_Buy = 78;
+input double RS_NAS100_RSI_Target_Sell = 46;
+input int    RS_NAS100_BarsToWait = 4;
+input int    RS_NAS100_MagicNumber = 20005;
+input int    RS_NAS100_Slippage = 5;
+
+input group "=== RSI Scalping US500 ==="
+input string RS_US500_Symbol = "US500";
+input ENUM_TIMEFRAMES RS_US500_TimeFrame = PERIOD_H1;
+input int    RS_US500_RSI_Period = 14;
+input ENUM_APPLIED_PRICE RS_US500_RSI_Applied_Price = PRICE_CLOSE;
+input double RS_US500_RSI_Overbought = 62;
+input double RS_US500_RSI_Oversold = 38;
+input double RS_US500_RSI_Target_Buy = 80;
+input double RS_US500_RSI_Target_Sell = 44;
+input int    RS_US500_BarsToWait = 5;
+input int    RS_US500_MagicNumber = 20006;
+input int    RS_US500_Slippage = 5;
+
+input group "=== RSI Scalping US30 ==="
+input string RS_US30_Symbol = "US30";
+input ENUM_TIMEFRAMES RS_US30_TimeFrame = PERIOD_H1;
+input int    RS_US30_RSI_Period = 14;
+input ENUM_APPLIED_PRICE RS_US30_RSI_Applied_Price = PRICE_CLOSE;
+input double RS_US30_RSI_Overbought = 56;
+input double RS_US30_RSI_Oversold = 44;
+input double RS_US30_RSI_Target_Buy = 76;
+input double RS_US30_RSI_Target_Sell = 48;
+input int    RS_US30_BarsToWait = 4;
+input int    RS_US30_MagicNumber = 20007;
+input int    RS_US30_Slippage = 5;
+
+input group "=== RSI Scalping XAGUSD ==="
+input string RS_XAGUSD_Symbol = "XAGUSD";
+input ENUM_TIMEFRAMES RS_XAGUSD_TimeFrame = PERIOD_H1;
+input int    RS_XAGUSD_RSI_Period = 14;
+input ENUM_APPLIED_PRICE RS_XAGUSD_RSI_Applied_Price = PRICE_CLOSE;
+input double RS_XAGUSD_RSI_Overbought = 65;
+input double RS_XAGUSD_RSI_Oversold = 35;
+input double RS_XAGUSD_RSI_Target_Buy = 82;
+input double RS_XAGUSD_RSI_Target_Sell = 42;
+input int    RS_XAGUSD_BarsToWait = 5;
+input int    RS_XAGUSD_MagicNumber = 20008;
+input int    RS_XAGUSD_Slippage = 5;
+
+input group "=== RSI Scalping EURJPY ==="
+input string RS_EURJPY_Symbol = "EURJPY";
+input ENUM_TIMEFRAMES RS_EURJPY_TimeFrame = PERIOD_M30;
+input int    RS_EURJPY_RSI_Period = 14;
+input ENUM_APPLIED_PRICE RS_EURJPY_RSI_Applied_Price = PRICE_CLOSE;
+input double RS_EURJPY_RSI_Overbought = 60;
+input double RS_EURJPY_RSI_Oversold = 40;
+input double RS_EURJPY_RSI_Target_Buy = 75;
+input double RS_EURJPY_RSI_Target_Sell = 45;
+input int    RS_EURJPY_BarsToWait = 4;
+input int    RS_EURJPY_MagicNumber = 20009;
+input int    RS_EURJPY_Slippage = 3;
+
+input group "=== RSI Scalping GBPJPY ==="
+input string RS_GBPJPY_Symbol = "GBPJPY";
+input ENUM_TIMEFRAMES RS_GBPJPY_TimeFrame = PERIOD_M30;
+input int    RS_GBPJPY_RSI_Period = 14;
+input ENUM_APPLIED_PRICE RS_GBPJPY_RSI_Applied_Price = PRICE_CLOSE;
+input double RS_GBPJPY_RSI_Overbought = 62;
+input double RS_GBPJPY_RSI_Oversold = 38;
+input double RS_GBPJPY_RSI_Target_Buy = 78;
+input double RS_GBPJPY_RSI_Target_Sell = 44;
+input int    RS_GBPJPY_BarsToWait = 4;
+input int    RS_GBPJPY_MagicNumber = 20010;
+input int    RS_GBPJPY_Slippage = 3;
 
 input group "=== RSI Scalping Reversal Escape (XAUUSD only) ==="
 input bool   RS_UseReversalEscape = true;
@@ -354,6 +575,11 @@ input bool   RS_APPL_UseTrailingStop = true;
 input double RS_APPL_TrailDistancePoints = 120.0;
 input double RS_APPL_TrailActivationPoints = 0.0;
 
+input group "=== RSI Scalping ADBE — Trailing ==="
+input bool   RS_ADBE_UseTrailingStop = true;
+input double RS_ADBE_TrailDistancePoints = 425.0;
+input double RS_ADBE_TrailActivationPoints = 18.5;
+
 input group "=== RSI Scalping BTCUSD — Trailing ==="
 input bool   RS_BTCUSD_UseTrailingStop = true;
 input double RS_BTCUSD_TrailDistancePoints = 120.0;
@@ -367,12 +593,114 @@ input double RS_NVDA_TrailActivationPoints = 75.0;
 input group "=== RSI Scalping TSLA — Trailing ==="
 input bool   RS_TSLA_UseTrailingStop = true;
 input double RS_TSLA_TrailDistancePoints = 900.0;
-input double RS_TSLA_TrailActivationPoints = 950.0;
+input double RS_TSLA_TrailActivationPoints = 500.0;
 
 input group "=== RSI Scalping XAUUSD — Trailing ==="
 input bool   RS_XAUUSD_UseTrailingStop = true;
 input double RS_XAUUSD_TrailDistancePoints = 71.0;
 input double RS_XAUUSD_TrailActivationPoints = 41.0;
+
+input group "=== RSI Scalping NAS100 — Trailing ==="
+input bool   RS_NAS100_UseTrailingStop = true;
+input double RS_NAS100_TrailDistancePoints = 180.0;
+input double RS_NAS100_TrailActivationPoints = 60.0;
+
+input group "=== RSI Scalping US500 — Trailing ==="
+input bool   RS_US500_UseTrailingStop = true;
+input double RS_US500_TrailDistancePoints = 150.0;
+input double RS_US500_TrailActivationPoints = 50.0;
+
+input group "=== RSI Scalping US30 — Trailing ==="
+input bool   RS_US30_UseTrailingStop = true;
+input double RS_US30_TrailDistancePoints = 200.0;
+input double RS_US30_TrailActivationPoints = 70.0;
+
+input group "=== RSI Scalping XAGUSD — Trailing ==="
+input bool   RS_XAGUSD_UseTrailingStop = true;
+input double RS_XAGUSD_TrailDistancePoints = 90.0;
+input double RS_XAGUSD_TrailActivationPoints = 35.0;
+
+input group "=== RSI Scalping EURJPY — Trailing ==="
+input bool   RS_EURJPY_UseTrailingStop = true;
+input double RS_EURJPY_TrailDistancePoints = 45.0;
+input double RS_EURJPY_TrailActivationPoints = 20.0;
+
+input group "=== RSI Scalping GBPJPY — Trailing ==="
+input bool   RS_GBPJPY_UseTrailingStop = true;
+input double RS_GBPJPY_TrailDistancePoints = 55.0;
+input double RS_GBPJPY_TrailActivationPoints = 25.0;
+
+input group "=== RSI Scalping F (Ford, low margin) ==="
+input string RS_F_Symbol = "F.NYS";
+input ENUM_TIMEFRAMES RS_F_TimeFrame = PERIOD_M15;
+input int    RS_F_RSI_Period = 8;
+input ENUM_APPLIED_PRICE RS_F_RSI_Applied_Price = PRICE_CLOSE;
+input double RS_F_RSI_Overbought = 36;
+input double RS_F_RSI_Oversold = 38;
+input double RS_F_RSI_Target_Buy = 90;
+input double RS_F_RSI_Target_Sell = 70;
+input int    RS_F_BarsToWait = 5;
+input int    RS_F_MagicNumber = 20011;
+input int    RS_F_Slippage = 5;
+
+input group "=== RSI Scalping SOFI (low margin) ==="
+input string RS_SOFI_Symbol = "SOFI.NAS";
+input ENUM_TIMEFRAMES RS_SOFI_TimeFrame = PERIOD_M15;
+input int    RS_SOFI_RSI_Period = 8;
+input ENUM_APPLIED_PRICE RS_SOFI_RSI_Applied_Price = PRICE_CLOSE;
+input double RS_SOFI_RSI_Overbought = 36;
+input double RS_SOFI_RSI_Oversold = 38;
+input double RS_SOFI_RSI_Target_Buy = 90;
+input double RS_SOFI_RSI_Target_Sell = 70;
+input int    RS_SOFI_BarsToWait = 5;
+input int    RS_SOFI_MagicNumber = 20012;
+input int    RS_SOFI_Slippage = 5;
+
+input group "=== RSI Scalping SNAP (Snap, ultra-low margin) ==="
+input string RS_SNAP_Symbol = "SNAP.NYS";
+input ENUM_TIMEFRAMES RS_SNAP_TimeFrame = PERIOD_M15;
+input int    RS_SNAP_RSI_Period = 8;
+input ENUM_APPLIED_PRICE RS_SNAP_RSI_Applied_Price = PRICE_CLOSE;
+input double RS_SNAP_RSI_Overbought = 36;
+input double RS_SNAP_RSI_Oversold = 38;
+input double RS_SNAP_RSI_Target_Buy = 90;
+input double RS_SNAP_RSI_Target_Sell = 70;
+input int    RS_SNAP_BarsToWait = 5;
+input int    RS_SNAP_MagicNumber = 20013;
+input int    RS_SNAP_Slippage = 5;
+
+input group "=== RSI Scalping WBD (Warner Bros, low margin) ==="
+input string RS_WBD_Symbol = "WBD.NAS";
+input ENUM_TIMEFRAMES RS_WBD_TimeFrame = PERIOD_M15;
+input int    RS_WBD_RSI_Period = 8;
+input ENUM_APPLIED_PRICE RS_WBD_RSI_Applied_Price = PRICE_CLOSE;
+input double RS_WBD_RSI_Overbought = 36;
+input double RS_WBD_RSI_Oversold = 38;
+input double RS_WBD_RSI_Target_Buy = 90;
+input double RS_WBD_RSI_Target_Sell = 70;
+input int    RS_WBD_BarsToWait = 5;
+input int    RS_WBD_MagicNumber = 20014;
+input int    RS_WBD_Slippage = 5;
+
+input group "=== RSI Scalping F — Trailing ==="
+input bool   RS_F_UseTrailingStop = true;
+input double RS_F_TrailDistancePoints = 375.0;
+input double RS_F_TrailActivationPoints = 75.0;
+
+input group "=== RSI Scalping SOFI — Trailing ==="
+input bool   RS_SOFI_UseTrailingStop = true;
+input double RS_SOFI_TrailDistancePoints = 375.0;
+input double RS_SOFI_TrailActivationPoints = 75.0;
+
+input group "=== RSI Scalping SNAP — Trailing ==="
+input bool   RS_SNAP_UseTrailingStop = true;
+input double RS_SNAP_TrailDistancePoints = 375.0;
+input double RS_SNAP_TrailActivationPoints = 75.0;
+
+input group "=== RSI Scalping WBD — Trailing ==="
+input bool   RS_WBD_UseTrailingStop = true;
+input double RS_WBD_TrailDistancePoints = 375.0;
+input double RS_WBD_TrailActivationPoints = 75.0;
 
 //+------------------------------------------------------------------+
 //| Strategy 11-12: RSI Reversal Asian Strategies                    |
@@ -532,6 +860,257 @@ input int    RSS_SwingLookback = 30;
 input int    RSS_MaxPositions = 1;
 input int    RSS_MinBarsBetweenTrades = 7;
 
+input group "=== USDJPY Buster (Asian range breakout) ==="
+input string              UB_Symbol = "USDJPY";
+input int                 UB_RangeStartHour = 3;
+input int                 UB_RangeEndHour = 6;
+input int                 UB_CloseHour = 18;
+input ENUM_TIMEFRAMES     UB_RangeTF = PERIOD_M20;
+input int                 UB_MinRangePoints = 15;
+input double              UB_OrderBufferPoints = 4.75;
+input bool                UB_FirstTradeOnly = false;
+input bool                UB_AllowLong = true;
+input bool                UB_AllowShort = true;
+input bool                UB_UseTakeProfit = false;
+input double              UB_TakeProfitPoints = 0.0;
+input ENUM_UB_RISK_MODE   UB_RiskMode = UB_RISK_FIXED_LOTS;
+input double              UB_FixedRiskMoney = 250.0;
+input double              UB_RiskPercent = 0.1;
+input double              UB_FixedLots = 0.01;
+input int                 UB_MagicNumber = 927002;
+input int                 UB_Slippage = 20;
+input int                 UB_MaxSpreadPoints = 20;
+input bool                UB_DrawRange = false;
+input bool                UB_DebugLog = false;
+
+input group "=== XAU Bear Trend (short-only hedge) ==="
+input string              XBT_Symbol = "XAUUSD";
+input ENUM_TIMEFRAMES     XBT_RegimeTF = PERIOD_D1;
+input ENUM_TIMEFRAMES     XBT_EntryTF = PERIOD_H1;
+input int                 XBT_RegimeEmaPeriod = 100;
+input int                 XBT_RsiPeriod = 14;
+input double              XBT_RsiArmLevel = 54.0;
+input double              XBT_RsiTriggerLevel = 50.0;
+input int                 XBT_AtrPeriod = 14;
+input double              XBT_SlAtrMult = 0.45;
+input double              XBT_TpAtrMult = 2.5;
+input bool                XBT_UseTrailing = true;
+input double              XBT_TrailAtrMult = 1.5;
+input ulong               XBT_MagicNumber = 928101;
+input int                 XBT_Slippage = 20;
+input int                 XBT_MaxSpreadPoints = 50;
+
+input group "=== XAU Momentum Breakdown (short-only hedge) ==="
+input string              XMB_Symbol = "XAUUSD";
+input ENUM_TIMEFRAMES     XMB_RegimeTF = PERIOD_D1;
+input ENUM_TIMEFRAMES     XMB_EntryTF = PERIOD_H4;
+input int                 XMB_RegimeEmaPeriod = 100;
+input int                 XMB_BbPeriod = 20;
+input double              XMB_BbDeviation = 2.0;
+input int                 XMB_AtrPeriod = 14;
+input double              XMB_SlAtrMult = 0.4;
+input double              XMB_TpAtrMult = 2.8;
+input bool                XMB_UseTrailing = true;
+input double              XMB_TrailAtrMult = 1.4;
+input ulong               XMB_MagicNumber = 928102;
+input int                 XMB_Slippage = 20;
+input int                 XMB_MaxSpreadPoints = 50;
+
+input group "=== RSI Reversal Asian GBPUSD ==="
+input string RRA_GBPUSD_Symbol = "GBPUSD";
+input int    RRA_GBPUSD_RSIPeriod = 32;
+input double RRA_GBPUSD_OverboughtLevel = 80;
+input double RRA_GBPUSD_OversoldLevel = 37;
+input int    RRA_GBPUSD_TakeProfitPips = 225;
+input int    RRA_GBPUSD_StopLossPips = 45;
+input double RRA_GBPUSD_MaxLotSize = 0.2;
+input int    RRA_GBPUSD_MaxSpread = 1800;
+input int    RRA_GBPUSD_MaxDuration = 480;
+input bool   RRA_GBPUSD_UseStopLoss = false;
+input bool   RRA_GBPUSD_UseTakeProfit = false;
+input bool   RRA_GBPUSD_UseRSIExit = true;
+input double RRA_GBPUSD_RSIExitLevel = 43;
+input bool   RRA_GBPUSD_CloseOutsideSession = true;
+input ENUM_TIMEFRAMES RRA_GBPUSD_TimeFrame = PERIOD_M15;
+input int    RRA_GBPUSD_MagicNumber = 30003;
+input int    RRA_GBPUSD_Slippage = 3;
+
+input group "=== GER40 Buster (European session range breakout) ==="
+input string              GB_Symbol = "GER40";
+input int                 GB_RangeStartHour = 8;
+input int                 GB_RangeEndHour = 10;
+input int                 GB_CloseHour = 20;
+input ENUM_TIMEFRAMES     GB_RangeTF = PERIOD_M15;
+input int                 GB_MinRangePoints = 80;
+input double              GB_OrderBufferPoints = 12.0;
+input bool                GB_FirstTradeOnly = false;
+input bool                GB_AllowLong = true;
+input bool                GB_AllowShort = true;
+input bool                GB_UseTakeProfit = false;
+input double              GB_TakeProfitPoints = 0.0;
+input ENUM_UB_RISK_MODE   GB_RiskMode = UB_RISK_FIXED_LOTS;
+input double              GB_FixedRiskMoney = 250.0;
+input double              GB_RiskPercent = 0.1;
+input double              GB_FixedLots = 0.01;
+input int                 GB_MagicNumber = 927102;
+input int                 GB_Slippage = 30;
+input int                 GB_MaxSpreadPoints = 120;
+input bool                GB_DrawRange = false;
+input bool                GB_DebugLog = false;
+
+input group "=== RSI Reversal Asian USDCHF ==="
+input string RRA_USDCHF_Symbol = "USDCHF";
+input int    RRA_USDCHF_RSIPeriod = 30;
+input double RRA_USDCHF_OverboughtLevel = 72;
+input double RRA_USDCHF_OversoldLevel = 22;
+input int    RRA_USDCHF_TakeProfitPips = 200;
+input int    RRA_USDCHF_StopLossPips = 40;
+input double RRA_USDCHF_MaxLotSize = 0.2;
+input int    RRA_USDCHF_MaxSpread = 1200;
+input int    RRA_USDCHF_MaxDuration = 420;
+input bool   RRA_USDCHF_UseStopLoss = false;
+input bool   RRA_USDCHF_UseTakeProfit = false;
+input bool   RRA_USDCHF_UseRSIExit = true;
+input double RRA_USDCHF_RSIExitLevel = 50;
+input bool   RRA_USDCHF_CloseOutsideSession = true;
+input ENUM_TIMEFRAMES RRA_USDCHF_TimeFrame = PERIOD_M15;
+input int    RRA_USDCHF_MagicNumber = 30004;
+input int    RRA_USDCHF_Slippage = 3;
+
+input group "=== RSI Reversal Asian NZDUSD ==="
+input string RRA_NZDUSD_Symbol = "NZDUSD";
+input int    RRA_NZDUSD_RSIPeriod = 28;
+input double RRA_NZDUSD_OverboughtLevel = 66;
+input double RRA_NZDUSD_OversoldLevel = 28;
+input int    RRA_NZDUSD_TakeProfitPips = 200;
+input int    RRA_NZDUSD_StopLossPips = 40;
+input double RRA_NZDUSD_MaxLotSize = 0.2;
+input int    RRA_NZDUSD_MaxSpread = 1200;
+input int    RRA_NZDUSD_MaxDuration = 400;
+input bool   RRA_NZDUSD_UseStopLoss = false;
+input bool   RRA_NZDUSD_UseTakeProfit = false;
+input bool   RRA_NZDUSD_UseRSIExit = true;
+input double RRA_NZDUSD_RSIExitLevel = 50;
+input bool   RRA_NZDUSD_CloseOutsideSession = true;
+input ENUM_TIMEFRAMES RRA_NZDUSD_TimeFrame = PERIOD_M15;
+input int    RRA_NZDUSD_MagicNumber = 30005;
+input int    RRA_NZDUSD_Slippage = 3;
+
+input group "=== NAS100 Buster (US cash open range) ==="
+input string              NB_Symbol = "NAS100";
+input int                 NB_RangeStartHour = 14;
+input int                 NB_RangeEndHour = 16;
+input int                 NB_CloseHour = 21;
+input ENUM_TIMEFRAMES     NB_RangeTF = PERIOD_M15;
+input int                 NB_MinRangePoints = 120;
+input double              NB_OrderBufferPoints = 18.0;
+input bool                NB_FirstTradeOnly = false;
+input bool                NB_AllowLong = true;
+input bool                NB_AllowShort = true;
+input bool                NB_UseTakeProfit = false;
+input double              NB_TakeProfitPoints = 0.0;
+input ENUM_UB_RISK_MODE   NB_RiskMode = UB_RISK_FIXED_LOTS;
+input double              NB_FixedRiskMoney = 250.0;
+input double              NB_RiskPercent = 0.1;
+input double              NB_FixedLots = 0.01;
+input int                 NB_MagicNumber = 927103;
+input int                 NB_Slippage = 40;
+input int                 NB_MaxSpreadPoints = 200;
+input bool                NB_DrawRange = false;
+input bool                NB_DebugLog = false;
+
+input group "=== US500 Buster (US cash open range) ==="
+input string              U5B_Symbol = "US500";
+input int                 U5B_RangeStartHour = 14;
+input int                 U5B_RangeEndHour = 16;
+input int                 U5B_CloseHour = 21;
+input ENUM_TIMEFRAMES     U5B_RangeTF = PERIOD_M15;
+input int                 U5B_MinRangePoints = 80;
+input double              U5B_OrderBufferPoints = 12.0;
+input bool                U5B_FirstTradeOnly = false;
+input bool                U5B_AllowLong = true;
+input bool                U5B_AllowShort = true;
+input bool                U5B_UseTakeProfit = false;
+input double              U5B_TakeProfitPoints = 0.0;
+input ENUM_UB_RISK_MODE   U5B_RiskMode = UB_RISK_FIXED_LOTS;
+input double              U5B_FixedRiskMoney = 250.0;
+input double              U5B_RiskPercent = 0.1;
+input double              U5B_FixedLots = 0.01;
+input int                 U5B_MagicNumber = 927104;
+input int                 U5B_Slippage = 35;
+input int                 U5B_MaxSpreadPoints = 150;
+input bool                U5B_DrawRange = false;
+input bool                U5B_DebugLog = false;
+
+input group "=== US30 Buster (US cash open range) ==="
+input string              U30B_Symbol = "US30";
+input int                 U30B_RangeStartHour = 14;
+input int                 U30B_RangeEndHour = 16;
+input int                 U30B_CloseHour = 21;
+input ENUM_TIMEFRAMES     U30B_RangeTF = PERIOD_M15;
+input int                 U30B_MinRangePoints = 150;
+input double              U30B_OrderBufferPoints = 22.0;
+input bool                U30B_FirstTradeOnly = false;
+input bool                U30B_AllowLong = true;
+input bool                U30B_AllowShort = true;
+input bool                U30B_UseTakeProfit = false;
+input double              U30B_TakeProfitPoints = 0.0;
+input ENUM_UB_RISK_MODE   U30B_RiskMode = UB_RISK_FIXED_LOTS;
+input double              U30B_FixedRiskMoney = 250.0;
+input double              U30B_RiskPercent = 0.1;
+input double              U30B_FixedLots = 0.01;
+input int                 U30B_MagicNumber = 927105;
+input int                 U30B_Slippage = 45;
+input int                 U30B_MaxSpreadPoints = 250;
+input bool                U30B_DrawRange = false;
+input bool                U30B_DebugLog = false;
+
+input group "=== UK100 Buster (London open range) ==="
+input string              UKB_Symbol = "UK100";
+input int                 UKB_RangeStartHour = 8;
+input int                 UKB_RangeEndHour = 10;
+input int                 UKB_CloseHour = 20;
+input ENUM_TIMEFRAMES     UKB_RangeTF = PERIOD_M15;
+input int                 UKB_MinRangePoints = 60;
+input double              UKB_OrderBufferPoints = 10.0;
+input bool                UKB_FirstTradeOnly = false;
+input bool                UKB_AllowLong = true;
+input bool                UKB_AllowShort = true;
+input bool                UKB_UseTakeProfit = false;
+input double              UKB_TakeProfitPoints = 0.0;
+input ENUM_UB_RISK_MODE   UKB_RiskMode = UB_RISK_FIXED_LOTS;
+input double              UKB_FixedRiskMoney = 250.0;
+input double              UKB_RiskPercent = 0.1;
+input double              UKB_FixedLots = 0.01;
+input int                 UKB_MagicNumber = 927106;
+input int                 UKB_Slippage = 35;
+input int                 UKB_MaxSpreadPoints = 180;
+input bool                UKB_DrawRange = false;
+input bool                UKB_DebugLog = false;
+
+input group "=== XAGUSD Buster (London silver range) ==="
+input string              XGB_Symbol = "XAGUSD";
+input int                 XGB_RangeStartHour = 8;
+input int                 XGB_RangeEndHour = 10;
+input int                 XGB_CloseHour = 20;
+input ENUM_TIMEFRAMES     XGB_RangeTF = PERIOD_M15;
+input int                 XGB_MinRangePoints = 25;
+input double              XGB_OrderBufferPoints = 4.0;
+input bool                XGB_FirstTradeOnly = false;
+input bool                XGB_AllowLong = true;
+input bool                XGB_AllowShort = true;
+input bool                XGB_UseTakeProfit = false;
+input double              XGB_TakeProfitPoints = 0.0;
+input ENUM_UB_RISK_MODE   XGB_RiskMode = UB_RISK_FIXED_LOTS;
+input double              XGB_FixedRiskMoney = 250.0;
+input double              XGB_RiskPercent = 0.1;
+input double              XGB_FixedLots = 0.01;
+input int                 XGB_MagicNumber = 927107;
+input int                 XGB_Slippage = 25;
+input int                 XGB_MaxSpreadPoints = 80;
+input bool                XGB_DrawRange = false;
+input bool                XGB_DebugLog = false;
+
 //+------------------------------------------------------------------+
 //| Balance scaling: LOT_* = nominal size at ORCH_ReferenceBalance    |
 //+------------------------------------------------------------------+
@@ -563,6 +1142,7 @@ void United_RefreshScaledLots()
    g_RC_LotSize = United_ScaledLot(LOT_RC_RSICrossOver);
    g_RM_LotSize = United_ScaledLot(LOT_RM_RSIMidPointHijack);
    g_Pos_RS_APPL = United_ScaledLot(LOT_RS_APPL);
+   g_Pos_RS_ADBE = United_ScaledLot(LOT_RS_ADBE);
    g_Pos_RS_BTCUSD = United_ScaledLot(LOT_RS_BTCUSD);
    g_Pos_RS_NVDA = United_ScaledLot(LOT_RS_NVDA);
    g_Pos_RS_TSLA = United_ScaledLot(LOT_RS_TSLA);
@@ -576,6 +1156,28 @@ void United_RefreshScaledLots()
    g_Pos_ST_XAUUSD = United_ScaledLot(LOT_ST_XAUUSD);
    g_Pos_ST_GER40 = United_ScaledLot(LOT_ST_GER40);
    g_RSS_LotSize = United_ScaledLot(LOT_RSS_SecretSauce);
+   g_Pos_UB_USDJPY = United_ScaledLot(LOT_UB_USDJPY);
+   g_Pos_XBT_XAUUSD = United_ScaledLot(LOT_XBT_XAUUSD);
+   g_Pos_XMB_XAUUSD = United_ScaledLot(LOT_XMB_XAUUSD);
+   g_Pos_RRA_GBPUSD = United_ScaledLot(LOT_RRA_GBPUSD);
+   g_Pos_GB_GER40 = United_ScaledLot(LOT_GB_GER40);
+   g_Pos_RS_NAS100 = United_ScaledLot(LOT_RS_NAS100);
+   g_Pos_RS_US500 = United_ScaledLot(LOT_RS_US500);
+   g_Pos_RRA_USDCHF = United_ScaledLot(LOT_RRA_USDCHF);
+   g_Pos_RRA_NZDUSD = United_ScaledLot(LOT_RRA_NZDUSD);
+   g_Pos_NB_NAS100 = United_ScaledLot(LOT_NB_NAS100);
+   g_Pos_U5B_US500 = United_ScaledLot(LOT_U5B_US500);
+   g_Pos_RS_US30 = United_ScaledLot(LOT_RS_US30);
+   g_Pos_RS_XAGUSD = United_ScaledLot(LOT_RS_XAGUSD);
+   g_Pos_RS_EURJPY = United_ScaledLot(LOT_RS_EURJPY);
+   g_Pos_RS_GBPJPY = United_ScaledLot(LOT_RS_GBPJPY);
+   g_Pos_U30B_US30 = United_ScaledLot(LOT_U30B_US30);
+   g_Pos_UKB_UK100 = United_ScaledLot(LOT_UKB_UK100);
+   g_Pos_XGB_XAGUSD = United_ScaledLot(LOT_XGB_XAGUSD);
+   g_Pos_RS_F = United_ScaledLot(LOT_RS_F);
+   g_Pos_RS_SOFI = United_ScaledLot(LOT_RS_SOFI);
+   g_Pos_RS_SNAP = United_ScaledLot(LOT_RS_SNAP);
+   g_Pos_RS_WBD = United_ScaledLot(LOT_RS_WBD);
 }
 
 //+------------------------------------------------------------------+
@@ -671,11 +1273,22 @@ EMASlopeData esData;
 RSICrossOverData rcData;
 RSIMidPointData rmData;
 RSIScalpingData rsAPPLData;
+RSIScalpingData rsADBEData;
 RSIScalpingData rsBTCUSDData;
 RSIScalpingData rsNVDAData;
 RSIScalpingData rsTSLAData;
 RSIScalpingData rsXAUUSDData;
 RSIScalpingData rsMUData;
+RSIScalpingData rsNAS100Data;
+RSIScalpingData rsUS500Data;
+RSIScalpingData rsUS30Data;
+RSIScalpingData rsXAGUSDData;
+RSIScalpingData rsEURJPYData;
+RSIScalpingData rsGBPJPYData;
+RSIScalpingData rsFData;
+RSIScalpingData rsSOFIData;
+RSIScalpingData rsSNAPData;
+RSIScalpingData rsWBDData;
 SuperEMAData seData;
 RSIConsolidationData rcoData;
 SimpleTrendlineData stBTCData;
@@ -688,6 +1301,81 @@ RSISecretSauceOrcData rssData;
 //+------------------------------------------------------------------+
 RSIReversalAsianData rraEURUSDData;
 RSIReversalAsianData rraAUDUSDData;
+RSIReversalAsianData rraGBPUSDData;
+RSIReversalAsianData rraUSDCHFData;
+RSIReversalAsianData rraNZDUSDData;
+USDJPYBusterData ubData;
+USDJPYBusterData gbData;
+USDJPYBusterData nbData;
+USDJPYBusterData u5bData;
+USDJPYBusterData u30bData;
+USDJPYBusterData ukbData;
+USDJPYBusterData xgbData;
+XAUBearTrendData xbtData;
+XAUMomentumBreakdownData xmbData;
+CTrade g_gapTrade;
+
+void United_GapGuardSetup()
+{
+   GapGuardConfig cfg;
+   cfg.enable = GAP_Enable;
+   cfg.closeBeforeSessionEnd = GAP_CloseBeforeSessionEnd;
+   cfg.minutesBeforeClose = GAP_MinutesBeforeClose;
+   cfg.closeBeforeWeekend = GAP_CloseBeforeWeekend;
+   cfg.fridayCloseHour = GAP_FridayCloseHour;
+   cfg.closeOnBarGapThroughSL = GAP_CloseOnBarGapThroughSL;
+   cfg.minGapPoints = GAP_MinGapPoints;
+   cfg.equityDailyFlatHour = GAP_EquityDailyFlatHour;
+   GapGuard_Init(cfg);
+
+   if(EnableDarvasBox) { GapGuard_RegisterMagic((ulong)DB_MagicNumber); GapGuard_RegisterSymbol(DB_Symbol); }
+   if(EnableEMASlopeDistance) { GapGuard_RegisterMagic((ulong)ES_MagicNumber); GapGuard_RegisterSymbol(ES_Symbol); }
+   if(EnableRSICrossOverReversal) { GapGuard_RegisterMagic((ulong)RC_MagicNumber); GapGuard_RegisterSymbol(RC_Symbol); }
+   if(EnableRSIMidPointHijack)
+   {
+      GapGuard_RegisterMagic((ulong)RM_InpMagicNumberRSIFollow);
+      GapGuard_RegisterMagic((ulong)RM_InpMagicNumberRSIReverse);
+      GapGuard_RegisterMagic((ulong)RM_InpMagicNumberEMACross);
+      GapGuard_RegisterSymbol(RM_Symbol);
+   }
+   if(EnableRSIScalpingAPPL) { GapGuard_RegisterMagic((ulong)RS_APPL_MagicNumber); GapGuard_RegisterSymbol(RS_APPL_Symbol); }
+   if(EnableRSIScalpingADBE) { GapGuard_RegisterMagic((ulong)RS_ADBE_MagicNumber); GapGuard_RegisterSymbol(RS_ADBE_Symbol); }
+   if(EnableRSIScalpingBTCUSD) { GapGuard_RegisterMagic((ulong)RS_BTCUSD_MagicNumber); GapGuard_RegisterSymbol(RS_BTCUSD_Symbol); }
+   if(EnableRSIScalpingNVDA) { GapGuard_RegisterMagic((ulong)RS_NVDA_MagicNumber); GapGuard_RegisterSymbol(RS_NVDA_Symbol); }
+   if(EnableRSIScalpingTSLA) { GapGuard_RegisterMagic((ulong)RS_TSLA_MagicNumber); GapGuard_RegisterSymbol(RS_TSLA_Symbol); }
+   if(EnableRSIScalpingXAUUSD) { GapGuard_RegisterMagic((ulong)RS_XAUUSD_MagicNumber); GapGuard_RegisterSymbol(RS_XAUUSD_Symbol); }
+   if(EnableRSIScalpingMU) { GapGuard_RegisterMagic((ulong)RS_MU_MagicNumber); GapGuard_RegisterSymbol(RS_MU_Symbol); }
+   if(EnableRSISecretSauce) { GapGuard_RegisterMagic((ulong)RSS_MagicNumber); GapGuard_RegisterSymbol(RSS_Symbol); }
+   if(EnableSuperEMA) { GapGuard_RegisterMagic((ulong)SE_MagicNumber); GapGuard_RegisterSymbol(SE_Symbol); }
+   if(EnableRSIConsolidation) { GapGuard_RegisterMagic(RCO_MagicNumber); GapGuard_RegisterSymbol(RCO_Symbol); }
+   if(EnableRSIReversalAsianEURUSD) { GapGuard_RegisterMagic((ulong)RRA_EURUSD_MagicNumber); GapGuard_RegisterSymbol(RRA_EURUSD_Symbol); }
+   if(EnableRSIReversalAsianAUDUSD) { GapGuard_RegisterMagic((ulong)RRA_AUDUSD_MagicNumber); GapGuard_RegisterSymbol(RRA_AUDUSD_Symbol); }
+   if(EnableSimpleTrendlineBTCUSD) { GapGuard_RegisterMagic(ST_BTC_MagicNumber); GapGuard_RegisterSymbol(ST_BTC_Symbol); }
+   if(EnableSimpleTrendlineXAUUSD) { GapGuard_RegisterMagic(ST_XAU_MagicNumber); GapGuard_RegisterSymbol(ST_XAU_Symbol); }
+   if(EnableSimpleTrendlineGER40) { GapGuard_RegisterMagic(ST_GER_MagicNumber); GapGuard_RegisterSymbol(ST_GER_Symbol); }
+   if(EnableUSDJPYBuster) { GapGuard_RegisterMagic((ulong)UB_MagicNumber); GapGuard_RegisterSymbol(UB_Symbol); }
+   if(EnableXAUBearTrend) { GapGuard_RegisterMagic(XBT_MagicNumber); GapGuard_RegisterSymbol(XBT_Symbol); }
+   if(EnableXAUMomentumBreakdown) { GapGuard_RegisterMagic(XMB_MagicNumber); GapGuard_RegisterSymbol(XMB_Symbol); }
+   if(EnableRSIReversalAsianGBPUSD) { GapGuard_RegisterMagic((ulong)RRA_GBPUSD_MagicNumber); GapGuard_RegisterSymbol(RRA_GBPUSD_Symbol); }
+   if(EnableGER40Buster) { GapGuard_RegisterMagic((ulong)GB_MagicNumber); GapGuard_RegisterSymbol(GB_Symbol); }
+   if(EnableRSIScalpingNAS100) { GapGuard_RegisterMagic((ulong)RS_NAS100_MagicNumber); GapGuard_RegisterSymbol(RS_NAS100_Symbol); }
+   if(EnableRSIScalpingUS500) { GapGuard_RegisterMagic((ulong)RS_US500_MagicNumber); GapGuard_RegisterSymbol(RS_US500_Symbol); }
+   if(EnableRSIReversalAsianUSDCHF) { GapGuard_RegisterMagic((ulong)RRA_USDCHF_MagicNumber); GapGuard_RegisterSymbol(RRA_USDCHF_Symbol); }
+   if(EnableRSIReversalAsianNZDUSD) { GapGuard_RegisterMagic((ulong)RRA_NZDUSD_MagicNumber); GapGuard_RegisterSymbol(RRA_NZDUSD_Symbol); }
+   if(EnableNAS100Buster) { GapGuard_RegisterMagic((ulong)NB_MagicNumber); GapGuard_RegisterSymbol(NB_Symbol); }
+   if(EnableUS500Buster) { GapGuard_RegisterMagic((ulong)U5B_MagicNumber); GapGuard_RegisterSymbol(U5B_Symbol); }
+   if(EnableRSIScalpingUS30) { GapGuard_RegisterMagic((ulong)RS_US30_MagicNumber); GapGuard_RegisterSymbol(RS_US30_Symbol); }
+   if(EnableRSIScalpingXAGUSD) { GapGuard_RegisterMagic((ulong)RS_XAGUSD_MagicNumber); GapGuard_RegisterSymbol(RS_XAGUSD_Symbol); }
+   if(EnableRSIScalpingEURJPY) { GapGuard_RegisterMagic((ulong)RS_EURJPY_MagicNumber); GapGuard_RegisterSymbol(RS_EURJPY_Symbol); }
+   if(EnableRSIScalpingGBPJPY) { GapGuard_RegisterMagic((ulong)RS_GBPJPY_MagicNumber); GapGuard_RegisterSymbol(RS_GBPJPY_Symbol); }
+   if(EnableUS30Buster) { GapGuard_RegisterMagic((ulong)U30B_MagicNumber); GapGuard_RegisterSymbol(U30B_Symbol); }
+   if(EnableUK100Buster) { GapGuard_RegisterMagic((ulong)UKB_MagicNumber); GapGuard_RegisterSymbol(UKB_Symbol); }
+   if(EnableXAGUSDBuster) { GapGuard_RegisterMagic((ulong)XGB_MagicNumber); GapGuard_RegisterSymbol(XGB_Symbol); }
+   if(EnableRSIScalpingF) { GapGuard_RegisterMagic((ulong)RS_F_MagicNumber); GapGuard_RegisterSymbol(RS_F_Symbol); }
+   if(EnableRSIScalpingSOFI) { GapGuard_RegisterMagic((ulong)RS_SOFI_MagicNumber); GapGuard_RegisterSymbol(RS_SOFI_Symbol); }
+   if(EnableRSIScalpingSNAP) { GapGuard_RegisterMagic((ulong)RS_SNAP_MagicNumber); GapGuard_RegisterSymbol(RS_SNAP_Symbol); }
+   if(EnableRSIScalpingWBD) { GapGuard_RegisterMagic((ulong)RS_WBD_MagicNumber); GapGuard_RegisterSymbol(RS_WBD_Symbol); }
+}
 
 //+------------------------------------------------------------------+
 //| Expert initialization function                                   |
@@ -697,6 +1385,7 @@ int OnInit()
    int initResult = INIT_SUCCEEDED;
    
    United_RefreshScaledLots();
+   United_GapGuardSetup();
    
    // Initialize strategies - log warnings but don't fail entire EA if symbol unavailable
    if(EnableDarvasBox)
@@ -718,6 +1407,9 @@ int OnInit()
    // Initialize RSI Scalping strategies - don't fail entire EA if symbol unavailable
    if(EnableRSIScalpingAPPL)
       InitRSIScalping(rsAPPLData, RS_APPL_Symbol, RS_APPL_TimeFrame, RS_APPL_RSI_Period, RS_APPL_RSI_Applied_Price, RS_APPL_MagicNumber, RS_APPL_Slippage);
+
+   if(EnableRSIScalpingADBE)
+      InitRSIScalping(rsADBEData, RS_ADBE_Symbol, RS_ADBE_TimeFrame, RS_ADBE_RSI_Period, RS_ADBE_RSI_Applied_Price, RS_ADBE_MagicNumber, RS_ADBE_Slippage);
    
    if(EnableRSIScalpingBTCUSD)
       InitRSIScalping(rsBTCUSDData, RS_BTCUSD_Symbol, RS_BTCUSD_TimeFrame, RS_BTCUSD_RSI_Period, RS_BTCUSD_RSI_Applied_Price, RS_BTCUSD_MagicNumber, RS_BTCUSD_Slippage);
@@ -732,6 +1424,33 @@ int OnInit()
       InitRSIScalping(rsXAUUSDData, RS_XAUUSD_Symbol, RS_XAUUSD_TimeFrame, RS_XAUUSD_RSI_Period, RS_XAUUSD_RSI_Applied_Price, RS_XAUUSD_MagicNumber, RS_XAUUSD_Slippage);
    if(EnableRSIScalpingMU)
       InitRSIScalping(rsMUData, RS_MU_Symbol, RS_MU_TimeFrame, RS_MU_RSI_Period, RS_MU_RSI_Applied_Price, RS_MU_MagicNumber, RS_MU_Slippage);
+
+   if(EnableRSIScalpingNAS100)
+      InitRSIScalping(rsNAS100Data, RS_NAS100_Symbol, RS_NAS100_TimeFrame, RS_NAS100_RSI_Period, RS_NAS100_RSI_Applied_Price, RS_NAS100_MagicNumber, RS_NAS100_Slippage);
+
+   if(EnableRSIScalpingUS500)
+      InitRSIScalping(rsUS500Data, RS_US500_Symbol, RS_US500_TimeFrame, RS_US500_RSI_Period, RS_US500_RSI_Applied_Price, RS_US500_MagicNumber, RS_US500_Slippage);
+
+   if(EnableRSIScalpingUS30)
+      InitRSIScalping(rsUS30Data, RS_US30_Symbol, RS_US30_TimeFrame, RS_US30_RSI_Period, RS_US30_RSI_Applied_Price, RS_US30_MagicNumber, RS_US30_Slippage);
+
+   if(EnableRSIScalpingXAGUSD)
+      InitRSIScalping(rsXAGUSDData, RS_XAGUSD_Symbol, RS_XAGUSD_TimeFrame, RS_XAGUSD_RSI_Period, RS_XAGUSD_RSI_Applied_Price, RS_XAGUSD_MagicNumber, RS_XAGUSD_Slippage);
+
+   if(EnableRSIScalpingEURJPY)
+      InitRSIScalping(rsEURJPYData, RS_EURJPY_Symbol, RS_EURJPY_TimeFrame, RS_EURJPY_RSI_Period, RS_EURJPY_RSI_Applied_Price, RS_EURJPY_MagicNumber, RS_EURJPY_Slippage);
+
+   if(EnableRSIScalpingGBPJPY)
+      InitRSIScalping(rsGBPJPYData, RS_GBPJPY_Symbol, RS_GBPJPY_TimeFrame, RS_GBPJPY_RSI_Period, RS_GBPJPY_RSI_Applied_Price, RS_GBPJPY_MagicNumber, RS_GBPJPY_Slippage);
+
+   if(EnableRSIScalpingF)
+      InitRSIScalping(rsFData, RS_F_Symbol, RS_F_TimeFrame, RS_F_RSI_Period, RS_F_RSI_Applied_Price, RS_F_MagicNumber, RS_F_Slippage);
+   if(EnableRSIScalpingSOFI)
+      InitRSIScalping(rsSOFIData, RS_SOFI_Symbol, RS_SOFI_TimeFrame, RS_SOFI_RSI_Period, RS_SOFI_RSI_Applied_Price, RS_SOFI_MagicNumber, RS_SOFI_Slippage);
+   if(EnableRSIScalpingSNAP)
+      InitRSIScalping(rsSNAPData, RS_SNAP_Symbol, RS_SNAP_TimeFrame, RS_SNAP_RSI_Period, RS_SNAP_RSI_Applied_Price, RS_SNAP_MagicNumber, RS_SNAP_Slippage);
+   if(EnableRSIScalpingWBD)
+      InitRSIScalping(rsWBDData, RS_WBD_Symbol, RS_WBD_TimeFrame, RS_WBD_RSI_Period, RS_WBD_RSI_Applied_Price, RS_WBD_MagicNumber, RS_WBD_Slippage);
 
    if(EnableRSISecretSauce)
       if(!InitRSISecretSauce(rssData, RSS_Symbol))
@@ -790,6 +1509,153 @@ int OnInit()
                               ST_GER_MAMethod, ST_GER_AppliedPrice, ST_GER_HTFBarsToScan,
                               ST_GER_LineTouchTolerance, ST_GER_BreakBuffer, ST_GER_MagicNumber, ST_GER_DrawTrendline))
          Print("Warning: SimpleTrendlineGER40 failed to initialize for symbol '", ST_GER_Symbol, "'");
+
+   if(EnableUSDJPYBuster)
+      if(!InitUSDJPYBuster(ubData, UB_Symbol,
+                            UB_RangeStartHour, UB_RangeEndHour, UB_CloseHour, UB_RangeTF,
+                            UB_MinRangePoints, UB_OrderBufferPoints,
+                            UB_FirstTradeOnly, UB_AllowLong, UB_AllowShort,
+                            UB_UseTakeProfit, UB_TakeProfitPoints,
+                            UB_RiskMode, UB_FixedRiskMoney, UB_RiskPercent, UB_FixedLots,
+                            UB_MagicNumber, UB_Slippage, UB_MaxSpreadPoints, UB_DrawRange, UB_DebugLog))
+         Print("Warning: USDJPYBuster failed to initialize for symbol '", UB_Symbol, "'");
+
+   if(EnableXAUBearTrend)
+      if(!InitXAUBearTrend(xbtData, XBT_Symbol, XBT_RegimeTF, XBT_EntryTF,
+                           XBT_RegimeEmaPeriod, XBT_RsiPeriod, XBT_RsiArmLevel, XBT_RsiTriggerLevel,
+                           XBT_AtrPeriod, XBT_SlAtrMult, XBT_TpAtrMult,
+                           XBT_UseTrailing, XBT_TrailAtrMult,
+                           XBT_MagicNumber, XBT_Slippage, XBT_MaxSpreadPoints))
+         Print("Warning: XAUBearTrend failed to initialize for symbol '", XBT_Symbol, "'");
+
+   if(EnableXAUMomentumBreakdown)
+      if(!InitXAUMomentumBreakdown(xmbData, XMB_Symbol, XMB_RegimeTF, XMB_EntryTF,
+                                   XMB_RegimeEmaPeriod, XMB_BbPeriod, XMB_BbDeviation, XMB_AtrPeriod,
+                                   XMB_SlAtrMult, XMB_TpAtrMult, XMB_UseTrailing, XMB_TrailAtrMult,
+                                   XMB_MagicNumber, XMB_Slippage, XMB_MaxSpreadPoints))
+         Print("Warning: XAUMomentumBreakdown failed to initialize for symbol '", XMB_Symbol, "'");
+
+   if(EnableRSIReversalAsianGBPUSD)
+      if(!InitRSIReversalAsian(rraGBPUSDData, RRA_GBPUSD_Symbol, RRA_GBPUSD_RSIPeriod, RRA_GBPUSD_OverboughtLevel, RRA_GBPUSD_OversoldLevel,
+                               RRA_GBPUSD_TakeProfitPips, RRA_GBPUSD_StopLossPips, LOT_RRA_GBPUSD,
+                               RRA_GBPUSD_MaxSpread, RRA_GBPUSD_MaxDuration, RRA_GBPUSD_UseStopLoss,
+                               RRA_GBPUSD_UseTakeProfit, RRA_GBPUSD_UseRSIExit, RRA_GBPUSD_RSIExitLevel,
+                               RRA_GBPUSD_CloseOutsideSession, RRA_GBPUSD_TimeFrame, RRA_GBPUSD_MagicNumber, RRA_GBPUSD_Slippage))
+         Print("Warning: RSIReversalAsianGBPUSD strategy failed to initialize for symbol '", RRA_GBPUSD_Symbol, "'");
+
+   if(EnableGER40Buster)
+      if(!InitUSDJPYBuster(gbData, GB_Symbol,
+                            GB_RangeStartHour, GB_RangeEndHour, GB_CloseHour, GB_RangeTF,
+                            GB_MinRangePoints, GB_OrderBufferPoints,
+                            GB_FirstTradeOnly, GB_AllowLong, GB_AllowShort,
+                            GB_UseTakeProfit, GB_TakeProfitPoints,
+                            GB_RiskMode, GB_FixedRiskMoney, GB_RiskPercent, GB_FixedLots,
+                            GB_MagicNumber, GB_Slippage, GB_MaxSpreadPoints, GB_DrawRange, GB_DebugLog))
+         Print("Warning: GER40Buster failed to initialize for symbol '", GB_Symbol, "'");
+
+   if(EnableRSIReversalAsianUSDCHF)
+      if(!InitRSIReversalAsian(rraUSDCHFData, RRA_USDCHF_Symbol, RRA_USDCHF_RSIPeriod, RRA_USDCHF_OverboughtLevel, RRA_USDCHF_OversoldLevel,
+                               RRA_USDCHF_TakeProfitPips, RRA_USDCHF_StopLossPips, LOT_RRA_USDCHF,
+                               RRA_USDCHF_MaxSpread, RRA_USDCHF_MaxDuration, RRA_USDCHF_UseStopLoss,
+                               RRA_USDCHF_UseTakeProfit, RRA_USDCHF_UseRSIExit, RRA_USDCHF_RSIExitLevel,
+                               RRA_USDCHF_CloseOutsideSession, RRA_USDCHF_TimeFrame, RRA_USDCHF_MagicNumber, RRA_USDCHF_Slippage))
+         Print("Warning: RSIReversalAsianUSDCHF strategy failed to initialize for symbol '", RRA_USDCHF_Symbol, "'");
+
+   if(EnableRSIReversalAsianNZDUSD)
+      if(!InitRSIReversalAsian(rraNZDUSDData, RRA_NZDUSD_Symbol, RRA_NZDUSD_RSIPeriod, RRA_NZDUSD_OverboughtLevel, RRA_NZDUSD_OversoldLevel,
+                               RRA_NZDUSD_TakeProfitPips, RRA_NZDUSD_StopLossPips, LOT_RRA_NZDUSD,
+                               RRA_NZDUSD_MaxSpread, RRA_NZDUSD_MaxDuration, RRA_NZDUSD_UseStopLoss,
+                               RRA_NZDUSD_UseTakeProfit, RRA_NZDUSD_UseRSIExit, RRA_NZDUSD_RSIExitLevel,
+                               RRA_NZDUSD_CloseOutsideSession, RRA_NZDUSD_TimeFrame, RRA_NZDUSD_MagicNumber, RRA_NZDUSD_Slippage))
+         Print("Warning: RSIReversalAsianNZDUSD strategy failed to initialize for symbol '", RRA_NZDUSD_Symbol, "'");
+
+   if(EnableNAS100Buster)
+      if(!InitUSDJPYBuster(nbData, NB_Symbol,
+                            NB_RangeStartHour, NB_RangeEndHour, NB_CloseHour, NB_RangeTF,
+                            NB_MinRangePoints, NB_OrderBufferPoints,
+                            NB_FirstTradeOnly, NB_AllowLong, NB_AllowShort,
+                            NB_UseTakeProfit, NB_TakeProfitPoints,
+                            NB_RiskMode, NB_FixedRiskMoney, NB_RiskPercent, NB_FixedLots,
+                            NB_MagicNumber, NB_Slippage, NB_MaxSpreadPoints, NB_DrawRange, NB_DebugLog))
+         Print("Warning: NAS100Buster failed to initialize for symbol '", NB_Symbol, "'");
+
+   if(EnableUS500Buster)
+      if(!InitUSDJPYBuster(u5bData, U5B_Symbol,
+                            U5B_RangeStartHour, U5B_RangeEndHour, U5B_CloseHour, U5B_RangeTF,
+                            U5B_MinRangePoints, U5B_OrderBufferPoints,
+                            U5B_FirstTradeOnly, U5B_AllowLong, U5B_AllowShort,
+                            U5B_UseTakeProfit, U5B_TakeProfitPoints,
+                            U5B_RiskMode, U5B_FixedRiskMoney, U5B_RiskPercent, U5B_FixedLots,
+                            U5B_MagicNumber, U5B_Slippage, U5B_MaxSpreadPoints, U5B_DrawRange, U5B_DebugLog))
+         Print("Warning: US500Buster failed to initialize for symbol '", U5B_Symbol, "'");
+
+   if(EnableUS30Buster)
+      if(!InitUSDJPYBuster(u30bData, U30B_Symbol,
+                            U30B_RangeStartHour, U30B_RangeEndHour, U30B_CloseHour, U30B_RangeTF,
+                            U30B_MinRangePoints, U30B_OrderBufferPoints,
+                            U30B_FirstTradeOnly, U30B_AllowLong, U30B_AllowShort,
+                            U30B_UseTakeProfit, U30B_TakeProfitPoints,
+                            U30B_RiskMode, U30B_FixedRiskMoney, U30B_RiskPercent, U30B_FixedLots,
+                            U30B_MagicNumber, U30B_Slippage, U30B_MaxSpreadPoints, U30B_DrawRange, U30B_DebugLog))
+         Print("Warning: US30Buster failed to initialize for symbol '", U30B_Symbol, "'");
+
+   if(EnableUK100Buster)
+      if(!InitUSDJPYBuster(ukbData, UKB_Symbol,
+                            UKB_RangeStartHour, UKB_RangeEndHour, UKB_CloseHour, UKB_RangeTF,
+                            UKB_MinRangePoints, UKB_OrderBufferPoints,
+                            UKB_FirstTradeOnly, UKB_AllowLong, UKB_AllowShort,
+                            UKB_UseTakeProfit, UKB_TakeProfitPoints,
+                            UKB_RiskMode, UKB_FixedRiskMoney, UKB_RiskPercent, UKB_FixedLots,
+                            UKB_MagicNumber, UKB_Slippage, UKB_MaxSpreadPoints, UKB_DrawRange, UKB_DebugLog))
+         Print("Warning: UK100Buster failed to initialize for symbol '", UKB_Symbol, "'");
+
+   if(EnableXAGUSDBuster)
+      if(!InitUSDJPYBuster(xgbData, XGB_Symbol,
+                            XGB_RangeStartHour, XGB_RangeEndHour, XGB_CloseHour, XGB_RangeTF,
+                            XGB_MinRangePoints, XGB_OrderBufferPoints,
+                            XGB_FirstTradeOnly, XGB_AllowLong, XGB_AllowShort,
+                            XGB_UseTakeProfit, XGB_TakeProfitPoints,
+                            XGB_RiskMode, XGB_FixedRiskMoney, XGB_RiskPercent, XGB_FixedLots,
+                            XGB_MagicNumber, XGB_Slippage, XGB_MaxSpreadPoints, XGB_DrawRange, XGB_DebugLog))
+         Print("Warning: XAGUSDBuster failed to initialize for symbol '", XGB_Symbol, "'");
+
+   rsAPPLData.closeUnprofitableOnNewSignal = RS_APPL_CloseUnprofitableOnNewSignal;
+   rsADBEData.closeUnprofitableOnNewSignal = RS_ADBE_CloseUnprofitableOnNewSignal;
+   rsBTCUSDData.closeUnprofitableOnNewSignal = RS_BTCUSD_CloseUnprofitableOnNewSignal;
+   rsNVDAData.closeUnprofitableOnNewSignal = RS_NVDA_CloseUnprofitableOnNewSignal;
+   rsTSLAData.closeUnprofitableOnNewSignal = RS_TSLA_CloseUnprofitableOnNewSignal;
+   rsXAUUSDData.closeUnprofitableOnNewSignal = RS_XAUUSD_CloseUnprofitableOnNewSignal;
+   rsMUData.closeUnprofitableOnNewSignal = RS_MU_CloseUnprofitableOnNewSignal;
+   rsNAS100Data.closeUnprofitableOnNewSignal = RS_NAS100_CloseUnprofitableOnNewSignal;
+   rsUS500Data.closeUnprofitableOnNewSignal = RS_US500_CloseUnprofitableOnNewSignal;
+   rsUS30Data.closeUnprofitableOnNewSignal = RS_US30_CloseUnprofitableOnNewSignal;
+   rsXAGUSDData.closeUnprofitableOnNewSignal = RS_XAGUSD_CloseUnprofitableOnNewSignal;
+   rsEURJPYData.closeUnprofitableOnNewSignal = RS_EURJPY_CloseUnprofitableOnNewSignal;
+   rsGBPJPYData.closeUnprofitableOnNewSignal = RS_GBPJPY_CloseUnprofitableOnNewSignal;
+   rsFData.closeUnprofitableOnNewSignal = RS_F_CloseUnprofitableOnNewSignal;
+   rsSOFIData.closeUnprofitableOnNewSignal = RS_SOFI_CloseUnprofitableOnNewSignal;
+   rsSNAPData.closeUnprofitableOnNewSignal = RS_SNAP_CloseUnprofitableOnNewSignal;
+   rsWBDData.closeUnprofitableOnNewSignal = RS_WBD_CloseUnprofitableOnNewSignal;
+   rraEURUSDData.closeUnprofitableOnNewSignal = RRA_EURUSD_CloseUnprofitableOnNewSignal;
+   rraAUDUSDData.closeUnprofitableOnNewSignal = RRA_AUDUSD_CloseUnprofitableOnNewSignal;
+   seData.closeUnprofitableOnNewSignal = SE_CloseUnprofitableOnNewSignal;
+   rcoData.closeUnprofitableOnNewSignal = RCO_CloseUnprofitableOnNewSignal;
+   stBTCData.closeUnprofitableOnNewSignal = ST_BTC_CloseUnprofitableOnNewSignal;
+   stXAUData.closeUnprofitableOnNewSignal = ST_XAU_CloseUnprofitableOnNewSignal;
+   stGERData.closeUnprofitableOnNewSignal = ST_GER_CloseUnprofitableOnNewSignal;
+   rssData.closeUnprofitableOnNewSignal = RSS_CloseUnprofitableOnNewSignal;
+   ubData.closeUnprofitableOnNewSignal = UB_CloseUnprofitableOnNewSignal;
+   xbtData.closeUnprofitableOnNewSignal = XBT_CloseUnprofitableOnNewSignal;
+   xmbData.closeUnprofitableOnNewSignal = XMB_CloseUnprofitableOnNewSignal;
+   rraGBPUSDData.closeUnprofitableOnNewSignal = RRA_GBPUSD_CloseUnprofitableOnNewSignal;
+   gbData.closeUnprofitableOnNewSignal = GB_CloseUnprofitableOnNewSignal;
+   rraUSDCHFData.closeUnprofitableOnNewSignal = RRA_USDCHF_CloseUnprofitableOnNewSignal;
+   rraNZDUSDData.closeUnprofitableOnNewSignal = RRA_NZDUSD_CloseUnprofitableOnNewSignal;
+   nbData.closeUnprofitableOnNewSignal = NB_CloseUnprofitableOnNewSignal;
+   u5bData.closeUnprofitableOnNewSignal = U5B_CloseUnprofitableOnNewSignal;
+   u30bData.closeUnprofitableOnNewSignal = U30B_CloseUnprofitableOnNewSignal;
+   ukbData.closeUnprofitableOnNewSignal = UKB_CloseUnprofitableOnNewSignal;
+   xgbData.closeUnprofitableOnNewSignal = XGB_CloseUnprofitableOnNewSignal;
    
    Print("United EA initialized. Active strategies: ", 
          (EnableDarvasBox ? "DarvasBox " : ""),
@@ -797,6 +1663,7 @@ int OnInit()
          (EnableRSICrossOverReversal ? "RSICrossOver " : ""),
          (EnableRSIMidPointHijack ? "RSIMidPoint " : ""),
          (EnableRSIScalpingAPPL ? "RSIScalpingAPPL " : ""),
+         (EnableRSIScalpingADBE ? "RSIScalpingADBE " : ""),
          (EnableRSIScalpingBTCUSD ? "RSIScalpingBTCUSD " : ""),
          (EnableRSIScalpingNVDA ? "RSIScalpingNVDA " : ""),
          (EnableRSIScalpingTSLA ? "RSIScalpingTSLA " : ""),
@@ -809,7 +1676,29 @@ int OnInit()
          (EnableRSIReversalAsianAUDUSD ? "RSIReversalAsianAUDUSD " : ""),
          (EnableSimpleTrendlineBTCUSD ? "SimpleTrendlineBTCUSD " : ""),
          (EnableSimpleTrendlineXAUUSD ? "SimpleTrendlineXAUUSD " : ""),
-         (EnableSimpleTrendlineGER40 ? "SimpleTrendlineGER40 " : ""));
+         (EnableSimpleTrendlineGER40 ? "SimpleTrendlineGER40 " : ""),
+         (EnableUSDJPYBuster ? "USDJPYBuster " : ""),
+         (EnableXAUBearTrend ? "XAUBearTrend " : ""),
+         (EnableXAUMomentumBreakdown ? "XAUMomentumBreakdown " : ""),
+         (EnableRSIReversalAsianGBPUSD ? "RSIReversalAsianGBPUSD " : ""),
+         (EnableGER40Buster ? "GER40Buster " : ""),
+         (EnableRSIScalpingNAS100 ? "RSIScalpingNAS100 " : ""),
+         (EnableRSIScalpingUS500 ? "RSIScalpingUS500 " : ""),
+         (EnableRSIReversalAsianUSDCHF ? "RSIReversalAsianUSDCHF " : ""),
+         (EnableRSIReversalAsianNZDUSD ? "RSIReversalAsianNZDUSD " : ""),
+         (EnableNAS100Buster ? "NAS100Buster " : ""),
+         (EnableUS500Buster ? "US500Buster " : ""),
+         (EnableRSIScalpingUS30 ? "RSIScalpingUS30 " : ""),
+         (EnableRSIScalpingXAGUSD ? "RSIScalpingXAGUSD " : ""),
+         (EnableRSIScalpingEURJPY ? "RSIScalpingEURJPY " : ""),
+         (EnableRSIScalpingGBPJPY ? "RSIScalpingGBPJPY " : ""),
+         (EnableUS30Buster ? "US30Buster " : ""),
+         (EnableUK100Buster ? "UK100Buster " : ""),
+         (EnableXAGUSDBuster ? "XAGUSDBuster " : ""),
+         (EnableRSIScalpingF ? "RSIScalpingF " : ""),
+         (EnableRSIScalpingSOFI ? "RSIScalpingSOFI " : ""),
+         (EnableRSIScalpingSNAP ? "RSIScalpingSNAP " : ""),
+         (EnableRSIScalpingWBD ? "RSIScalpingWBD " : ""));
    
    return initResult;
 }
@@ -833,6 +1722,9 @@ void OnDeinit(const int reason)
    
    if(EnableRSIScalpingAPPL)
       DeinitRSIScalping(rsAPPLData);
+
+   if(EnableRSIScalpingADBE)
+      DeinitRSIScalping(rsADBEData);
    
    if(EnableRSIScalpingBTCUSD)
       DeinitRSIScalping(rsBTCUSDData);
@@ -847,6 +1739,26 @@ void OnDeinit(const int reason)
       DeinitRSIScalping(rsXAUUSDData);
    if(EnableRSIScalpingMU)
       DeinitRSIScalping(rsMUData);
+   if(EnableRSIScalpingNAS100)
+      DeinitRSIScalping(rsNAS100Data);
+   if(EnableRSIScalpingUS500)
+      DeinitRSIScalping(rsUS500Data);
+   if(EnableRSIScalpingUS30)
+      DeinitRSIScalping(rsUS30Data);
+   if(EnableRSIScalpingXAGUSD)
+      DeinitRSIScalping(rsXAGUSDData);
+   if(EnableRSIScalpingEURJPY)
+      DeinitRSIScalping(rsEURJPYData);
+   if(EnableRSIScalpingGBPJPY)
+      DeinitRSIScalping(rsGBPJPYData);
+   if(EnableRSIScalpingF)
+      DeinitRSIScalping(rsFData);
+   if(EnableRSIScalpingSOFI)
+      DeinitRSIScalping(rsSOFIData);
+   if(EnableRSIScalpingSNAP)
+      DeinitRSIScalping(rsSNAPData);
+   if(EnableRSIScalpingWBD)
+      DeinitRSIScalping(rsWBDData);
 
    if(EnableRSISecretSauce)
       DeinitRSISecretSauce(rssData);
@@ -869,6 +1781,42 @@ void OnDeinit(const int reason)
       DeinitSimpleTrendline(stXAUData);
    if(EnableSimpleTrendlineGER40)
       DeinitSimpleTrendline(stGERData);
+
+   if(EnableUSDJPYBuster)
+      DeinitUSDJPYBuster(ubData);
+
+   if(EnableXAUBearTrend)
+      DeinitXAUBearTrend(xbtData);
+
+   if(EnableXAUMomentumBreakdown)
+      DeinitXAUMomentumBreakdown(xmbData);
+
+   if(EnableRSIReversalAsianGBPUSD)
+      DeinitRSIReversalAsian(rraGBPUSDData);
+
+   if(EnableGER40Buster)
+      DeinitUSDJPYBuster(gbData);
+
+   if(EnableRSIReversalAsianUSDCHF)
+      DeinitRSIReversalAsian(rraUSDCHFData);
+
+   if(EnableRSIReversalAsianNZDUSD)
+      DeinitRSIReversalAsian(rraNZDUSDData);
+
+   if(EnableNAS100Buster)
+      DeinitUSDJPYBuster(nbData);
+
+   if(EnableUS500Buster)
+      DeinitUSDJPYBuster(u5bData);
+
+   if(EnableUS30Buster)
+      DeinitUSDJPYBuster(u30bData);
+
+   if(EnableUK100Buster)
+      DeinitUSDJPYBuster(ukbData);
+
+   if(EnableXAGUSDBuster)
+      DeinitUSDJPYBuster(xgbData);
    
    Print("United EA deinitialized. Reason: ", reason);
 }
@@ -879,6 +1827,7 @@ void OnDeinit(const int reason)
 void OnTick()
 {
    United_RefreshScaledLots();
+   United_ProcessGapGuard(g_gapTrade);
 
    if(EnableDarvasBox)
       ProcessDarvasBox(DB_Symbol);
@@ -899,6 +1848,14 @@ void OnTick()
                         false, RS_ReversalATRPeriod, RS_ReversalAdverseAtrMult, RS_ReversalSignsRequired,
                         RS_ReversalRsiVelocity, RS_ReversalBodyAtrMult,
                         RS_APPL_UseTrailingStop, RS_APPL_TrailDistancePoints, RS_APPL_TrailActivationPoints);
+
+   if(EnableRSIScalpingADBE)
+      ProcessRSIScalping(rsADBEData, RS_ADBE_Symbol, RS_ADBE_TimeFrame, RS_ADBE_RSI_Period, RS_ADBE_RSI_Applied_Price,
+                        RS_ADBE_RSI_Overbought, RS_ADBE_RSI_Oversold, RS_ADBE_RSI_Target_Buy, RS_ADBE_RSI_Target_Sell,
+                        RS_ADBE_BarsToWait, g_Pos_RS_ADBE, RS_ADBE_MagicNumber,
+                        false, RS_ReversalATRPeriod, RS_ReversalAdverseAtrMult, RS_ReversalSignsRequired,
+                        RS_ReversalRsiVelocity, RS_ReversalBodyAtrMult,
+                        RS_ADBE_UseTrailingStop, RS_ADBE_TrailDistancePoints, RS_ADBE_TrailActivationPoints);
    
    if(EnableRSIScalpingBTCUSD)
       ProcessRSIScalping(rsBTCUSDData, RS_BTCUSD_Symbol, RS_BTCUSD_TimeFrame, RS_BTCUSD_RSI_Period, RS_BTCUSD_RSI_Applied_Price,
@@ -939,6 +1896,83 @@ void OnTick()
                         RS_ReversalRsiVelocity, RS_ReversalBodyAtrMult,
                         false, 0.0, 0.0);
 
+   if(EnableRSIScalpingNAS100)
+      ProcessRSIScalping(rsNAS100Data, RS_NAS100_Symbol, RS_NAS100_TimeFrame, RS_NAS100_RSI_Period, RS_NAS100_RSI_Applied_Price,
+                        RS_NAS100_RSI_Overbought, RS_NAS100_RSI_Oversold, RS_NAS100_RSI_Target_Buy, RS_NAS100_RSI_Target_Sell,
+                        RS_NAS100_BarsToWait, g_Pos_RS_NAS100, RS_NAS100_MagicNumber,
+                        false, RS_ReversalATRPeriod, RS_ReversalAdverseAtrMult, RS_ReversalSignsRequired,
+                        RS_ReversalRsiVelocity, RS_ReversalBodyAtrMult,
+                        RS_NAS100_UseTrailingStop, RS_NAS100_TrailDistancePoints, RS_NAS100_TrailActivationPoints);
+
+   if(EnableRSIScalpingUS500)
+      ProcessRSIScalping(rsUS500Data, RS_US500_Symbol, RS_US500_TimeFrame, RS_US500_RSI_Period, RS_US500_RSI_Applied_Price,
+                        RS_US500_RSI_Overbought, RS_US500_RSI_Oversold, RS_US500_RSI_Target_Buy, RS_US500_RSI_Target_Sell,
+                        RS_US500_BarsToWait, g_Pos_RS_US500, RS_US500_MagicNumber,
+                        false, RS_ReversalATRPeriod, RS_ReversalAdverseAtrMult, RS_ReversalSignsRequired,
+                        RS_ReversalRsiVelocity, RS_ReversalBodyAtrMult,
+                        RS_US500_UseTrailingStop, RS_US500_TrailDistancePoints, RS_US500_TrailActivationPoints);
+
+   if(EnableRSIScalpingUS30)
+      ProcessRSIScalping(rsUS30Data, RS_US30_Symbol, RS_US30_TimeFrame, RS_US30_RSI_Period, RS_US30_RSI_Applied_Price,
+                        RS_US30_RSI_Overbought, RS_US30_RSI_Oversold, RS_US30_RSI_Target_Buy, RS_US30_RSI_Target_Sell,
+                        RS_US30_BarsToWait, g_Pos_RS_US30, RS_US30_MagicNumber,
+                        false, RS_ReversalATRPeriod, RS_ReversalAdverseAtrMult, RS_ReversalSignsRequired,
+                        RS_ReversalRsiVelocity, RS_ReversalBodyAtrMult,
+                        RS_US30_UseTrailingStop, RS_US30_TrailDistancePoints, RS_US30_TrailActivationPoints);
+
+   if(EnableRSIScalpingXAGUSD)
+      ProcessRSIScalping(rsXAGUSDData, RS_XAGUSD_Symbol, RS_XAGUSD_TimeFrame, RS_XAGUSD_RSI_Period, RS_XAGUSD_RSI_Applied_Price,
+                        RS_XAGUSD_RSI_Overbought, RS_XAGUSD_RSI_Oversold, RS_XAGUSD_RSI_Target_Buy, RS_XAGUSD_RSI_Target_Sell,
+                        RS_XAGUSD_BarsToWait, g_Pos_RS_XAGUSD, RS_XAGUSD_MagicNumber,
+                        false, RS_ReversalATRPeriod, RS_ReversalAdverseAtrMult, RS_ReversalSignsRequired,
+                        RS_ReversalRsiVelocity, RS_ReversalBodyAtrMult,
+                        RS_XAGUSD_UseTrailingStop, RS_XAGUSD_TrailDistancePoints, RS_XAGUSD_TrailActivationPoints);
+
+   if(EnableRSIScalpingEURJPY)
+      ProcessRSIScalping(rsEURJPYData, RS_EURJPY_Symbol, RS_EURJPY_TimeFrame, RS_EURJPY_RSI_Period, RS_EURJPY_RSI_Applied_Price,
+                        RS_EURJPY_RSI_Overbought, RS_EURJPY_RSI_Oversold, RS_EURJPY_RSI_Target_Buy, RS_EURJPY_RSI_Target_Sell,
+                        RS_EURJPY_BarsToWait, g_Pos_RS_EURJPY, RS_EURJPY_MagicNumber,
+                        false, RS_ReversalATRPeriod, RS_ReversalAdverseAtrMult, RS_ReversalSignsRequired,
+                        RS_ReversalRsiVelocity, RS_ReversalBodyAtrMult,
+                        RS_EURJPY_UseTrailingStop, RS_EURJPY_TrailDistancePoints, RS_EURJPY_TrailActivationPoints);
+
+   if(EnableRSIScalpingGBPJPY)
+      ProcessRSIScalping(rsGBPJPYData, RS_GBPJPY_Symbol, RS_GBPJPY_TimeFrame, RS_GBPJPY_RSI_Period, RS_GBPJPY_RSI_Applied_Price,
+                        RS_GBPJPY_RSI_Overbought, RS_GBPJPY_RSI_Oversold, RS_GBPJPY_RSI_Target_Buy, RS_GBPJPY_RSI_Target_Sell,
+                        RS_GBPJPY_BarsToWait, g_Pos_RS_GBPJPY, RS_GBPJPY_MagicNumber,
+                        false, RS_ReversalATRPeriod, RS_ReversalAdverseAtrMult, RS_ReversalSignsRequired,
+                        RS_ReversalRsiVelocity, RS_ReversalBodyAtrMult,
+                        RS_GBPJPY_UseTrailingStop, RS_GBPJPY_TrailDistancePoints, RS_GBPJPY_TrailActivationPoints);
+
+   if(EnableRSIScalpingF)
+      ProcessRSIScalping(rsFData, RS_F_Symbol, RS_F_TimeFrame, RS_F_RSI_Period, RS_F_RSI_Applied_Price,
+                        RS_F_RSI_Overbought, RS_F_RSI_Oversold, RS_F_RSI_Target_Buy, RS_F_RSI_Target_Sell,
+                        RS_F_BarsToWait, g_Pos_RS_F, RS_F_MagicNumber,
+                        false, RS_ReversalATRPeriod, RS_ReversalAdverseAtrMult, RS_ReversalSignsRequired,
+                        RS_ReversalRsiVelocity, RS_ReversalBodyAtrMult,
+                        RS_F_UseTrailingStop, RS_F_TrailDistancePoints, RS_F_TrailActivationPoints);
+   if(EnableRSIScalpingSOFI)
+      ProcessRSIScalping(rsSOFIData, RS_SOFI_Symbol, RS_SOFI_TimeFrame, RS_SOFI_RSI_Period, RS_SOFI_RSI_Applied_Price,
+                        RS_SOFI_RSI_Overbought, RS_SOFI_RSI_Oversold, RS_SOFI_RSI_Target_Buy, RS_SOFI_RSI_Target_Sell,
+                        RS_SOFI_BarsToWait, g_Pos_RS_SOFI, RS_SOFI_MagicNumber,
+                        false, RS_ReversalATRPeriod, RS_ReversalAdverseAtrMult, RS_ReversalSignsRequired,
+                        RS_ReversalRsiVelocity, RS_ReversalBodyAtrMult,
+                        RS_SOFI_UseTrailingStop, RS_SOFI_TrailDistancePoints, RS_SOFI_TrailActivationPoints);
+   if(EnableRSIScalpingSNAP)
+      ProcessRSIScalping(rsSNAPData, RS_SNAP_Symbol, RS_SNAP_TimeFrame, RS_SNAP_RSI_Period, RS_SNAP_RSI_Applied_Price,
+                        RS_SNAP_RSI_Overbought, RS_SNAP_RSI_Oversold, RS_SNAP_RSI_Target_Buy, RS_SNAP_RSI_Target_Sell,
+                        RS_SNAP_BarsToWait, g_Pos_RS_SNAP, RS_SNAP_MagicNumber,
+                        false, RS_ReversalATRPeriod, RS_ReversalAdverseAtrMult, RS_ReversalSignsRequired,
+                        RS_ReversalRsiVelocity, RS_ReversalBodyAtrMult,
+                        RS_SNAP_UseTrailingStop, RS_SNAP_TrailDistancePoints, RS_SNAP_TrailActivationPoints);
+   if(EnableRSIScalpingWBD)
+      ProcessRSIScalping(rsWBDData, RS_WBD_Symbol, RS_WBD_TimeFrame, RS_WBD_RSI_Period, RS_WBD_RSI_Applied_Price,
+                        RS_WBD_RSI_Overbought, RS_WBD_RSI_Oversold, RS_WBD_RSI_Target_Buy, RS_WBD_RSI_Target_Sell,
+                        RS_WBD_BarsToWait, g_Pos_RS_WBD, RS_WBD_MagicNumber,
+                        false, RS_ReversalATRPeriod, RS_ReversalAdverseAtrMult, RS_ReversalSignsRequired,
+                        RS_ReversalRsiVelocity, RS_ReversalBodyAtrMult,
+                        RS_WBD_UseTrailingStop, RS_WBD_TrailDistancePoints, RS_WBD_TrailActivationPoints);
+
    if(EnableRSISecretSauce)
       ProcessRSISecretSauce(rssData, g_RSS_LotSize);
    
@@ -960,6 +1994,42 @@ void OnTick()
       ProcessSimpleTrendline(stXAUData, g_Pos_ST_XAUUSD);
    if(EnableSimpleTrendlineGER40)
       ProcessSimpleTrendline(stGERData, g_Pos_ST_GER40);
+
+   if(EnableUSDJPYBuster)
+      ProcessUSDJPYBuster(ubData, g_Pos_UB_USDJPY, United_BalanceScaleFactor());
+
+   if(EnableXAUBearTrend)
+      ProcessXAUBearTrend(xbtData, g_Pos_XBT_XAUUSD);
+
+   if(EnableXAUMomentumBreakdown)
+      ProcessXAUMomentumBreakdown(xmbData, g_Pos_XMB_XAUUSD);
+
+   if(EnableRSIReversalAsianGBPUSD)
+      ProcessRSIReversalAsian(rraGBPUSDData, g_Pos_RRA_GBPUSD);
+
+   if(EnableGER40Buster)
+      ProcessUSDJPYBuster(gbData, g_Pos_GB_GER40, United_BalanceScaleFactor());
+
+   if(EnableRSIReversalAsianUSDCHF)
+      ProcessRSIReversalAsian(rraUSDCHFData, g_Pos_RRA_USDCHF);
+
+   if(EnableRSIReversalAsianNZDUSD)
+      ProcessRSIReversalAsian(rraNZDUSDData, g_Pos_RRA_NZDUSD);
+
+   if(EnableNAS100Buster)
+      ProcessUSDJPYBuster(nbData, g_Pos_NB_NAS100, United_BalanceScaleFactor());
+
+   if(EnableUS500Buster)
+      ProcessUSDJPYBuster(u5bData, g_Pos_U5B_US500, United_BalanceScaleFactor());
+
+   if(EnableUS30Buster)
+      ProcessUSDJPYBuster(u30bData, g_Pos_U30B_US30, United_BalanceScaleFactor());
+
+   if(EnableUK100Buster)
+      ProcessUSDJPYBuster(ukbData, g_Pos_UKB_UK100, United_BalanceScaleFactor());
+
+   if(EnableXAGUSDBuster)
+      ProcessUSDJPYBuster(xgbData, g_Pos_XGB_XAGUSD, United_BalanceScaleFactor());
 }
 
 //+------------------------------------------------------------------+

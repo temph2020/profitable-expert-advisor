@@ -1,0 +1,23 @@
+; RSIReversalAsianAUDUSD/main.mq5 — Strategy Tester → Inputs → Load (Genetic optimization)
+; Format: Parameter=Current||Start||Step||Stop||Optimize(Y/N)
+; Baseline aligned with current input defaults and Desktop 123.set-style ranges (2026.05.13).
+;
+; Core RSI / exits
+RSIPeriod=28||14||2||40||Y
+OverboughtLevel=68.0||55.0||1.0||80.0||Y
+OversoldLevel=30.0||18.0||1.0||42.0||Y
+TakeProfitPips=175||50||25||350||Y
+StopLossPips=5||5||5||80||Y
+MaxLotSize=0.2||0.01||0.01||0.2||N
+MaxSpread=1000||200||100||2000||Y
+MaxDuration=340||48||24||720||Y
+UseStopLoss=false||false||0||true||N
+UseTakeProfit=false||false||0||true||N
+UseRSIExit=true||false||0||true||N
+RSIExitLevel=48.0||40.0||1.0||55.0||Y
+CloseOutsideSession=true||false||0||true||Y
+; Panel (usually fixed; colors as in MT5 saved sets)
+PanelBackground=0
+PanelText=16777215
+PanelX=10||10||1||100||N
+PanelY=20||20||1||200||N

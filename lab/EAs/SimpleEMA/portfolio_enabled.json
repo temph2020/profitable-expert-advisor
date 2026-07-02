@@ -1,0 +1,17 @@
+{
+  "symbols": [
+    "EURUSD",
+    "USDJPY",
+    "USDCHF",
+    "USDCAD",
+    "AUDUSD",
+    "NZDUSD",
+    "EURAUD",
+    "EURNZD",
+    "CADJPY",
+    "CHFJPY",
+    "XAUUSD",
+    "XAGUSD"
+  ],
+  "symbol_list": "EURUSD,USDJPY,USDCHF,USDCAD,AUDUSD,NZDUSD,EURAUD,EURNZD,CADJPY,CHFJPY,XAUUSD,XAGUSD"
+}

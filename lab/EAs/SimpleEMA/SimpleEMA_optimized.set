@@ -1,0 +1,26 @@
+; SimpleEMA v5 — trend-leg cross + pullback
+Timeframe=16388
+FastEmaPeriod=11
+SlowEmaPeriod=34
+TrendLegBars=56
+MinEmaGapPips=1.5
+CrossCooldown=6
+PullbackCooldown=5
+UsePullback=true
+PullbackTouch=0
+PullbackAdxMin=25.0
+PullbackMinGapPips=2.9
+MaxPullbacksPerLeg=1
+AtrPeriod=14
+AtrSlMult=2.54
+AtrTpMult=4.84
+MaxBarsInTrade=80
+HtfEmaPeriod=100
+UseHtfFilter=true
+UseAdxFilter=false
+AdxPeriod=14
+AdxMin=18.0
+SessionStartHour=8
+SessionEndHour=22
+MaxSpreadPips=6.0
+LotSize=0.1

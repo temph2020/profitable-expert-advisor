@@ -43,6 +43,7 @@ struct SuperEMAData
    int                   maxHoldingBars;
    bool                  exitBelowMidEma;
    bool                  debugLogs;
+   bool                  closeUnprofitableOnNewSignal;
 };
 
 void SuperEMA_Log(SuperEMAData &d, const string s)
@@ -429,7 +430,7 @@ void ProcessSuperEMA(SuperEMAData &d, const double lots)
    SuperEMA_ManageExits(d);
 
    // Same order as standalone SuperEMAXAUUSD: skip entry logic when flat is not allowed.
-   if(d.oneTradeOnly && SuperEMA_PositionsByMagic(d) > 0)
+   if(d.oneTradeOnly && SuperEMA_PositionsByMagic(d) > 0 && !d.closeUnprofitableOnNewSignal)
       return;
 
    const int sh = d.emaTrendBars;
@@ -476,6 +477,9 @@ void ProcessSuperEMA(SuperEMAData &d, const double lots)
       SuperEMA_Log(d, "Skip entry: normalized volume <= 0");
       return;
    }
+
+   if(!United_PrepareEntrySlot(d.trade, d.symbol, d.magic, d.closeUnprofitableOnNewSignal))
+      return;
 
    MqlTick tick;
    if(!SymbolInfoTick(d.symbol, tick))

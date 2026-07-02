@@ -104,6 +104,7 @@ input double RC_exitBuyRSI = 86;
 input double RC_exitSellRSI = 10;
 input double RC_TrailingStop = 295;
 input double RC_emaDistanceThreshold = 165;
+input bool   RC_UseTrendStrengthFilter = true;
 input int    RC_tradingHourOneBegin = 24;
 input int    RC_tradingHourOneEnd = 22;
 input int    RC_tradingHourTwoBegin = 6;

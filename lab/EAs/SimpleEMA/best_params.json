@@ -1,0 +1,39 @@
+{
+  "version": 5,
+  "target_met": false,
+  "params": {
+    "fast_ema": 11,
+    "slow_ema": 34,
+    "trend_leg_bars": 56,
+    "min_ema_gap_pips": 1.5,
+    "cross_cooldown": 6,
+    "pullback_cooldown": 5,
+    "use_pullback": true,
+    "pullback_touch": 0,
+    "pullback_adx_min": 25.0,
+    "pullback_min_gap_pips": 2.9,
+    "max_pullbacks_per_leg": 1,
+    "atr_period": 14,
+    "atr_sl_mult": 2.54,
+    "atr_tp_mult": 4.84,
+    "max_bars_in_trade": 80,
+    "htf_ema_period": 100,
+    "use_htf_filter": true,
+    "use_adx_filter": false,
+    "adx_period": 14,
+    "adx_min": 18.0,
+    "session_start": 8,
+    "session_end": 22,
+    "max_spread_pips": 6.0,
+    "lot_size": 0.1,
+    "initial_balance": 10000.0
+  },
+  "metrics": {
+    "net_profit": 315.0799999999963,
+    "total_trades": 115,
+    "win_rate": 40.869565217391305,
+    "profit_factor": 1.2081522098170046,
+    "max_drawdown_pct": 2.1473621754491634,
+    "sharpe": 0.4947439712557756
+  }
+}

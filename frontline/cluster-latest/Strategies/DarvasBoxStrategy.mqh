@@ -286,7 +286,7 @@ void ProcessDarvasBox(string symbol)
             Print("DarvasBox: Breakout Signal Detected - Price above box high");
             
          // Buy signal
-         if(!PositionExistsByMagic(dbData.symbol, (ulong)DB_MagicNumber)) // No existing positions with our magic number
+         if(United_PrepareEntrySlot(dbData.trade, dbData.symbol, (ulong)DB_MagicNumber, DB_CloseUnprofitableOnNewSignal))
          {
             double sl = currentPrice - DB_StopLoss * dbData.point;
             double tp = currentPrice + DB_TakeProfit * dbData.point;
@@ -307,7 +307,7 @@ void ProcessDarvasBox(string symbol)
             Print("DarvasBox: Breakdown Signal Detected - Price below box low");
             
          // Sell signal
-         if(!PositionExistsByMagic(dbData.symbol, (ulong)DB_MagicNumber)) // No existing positions with our magic number
+         if(United_PrepareEntrySlot(dbData.trade, dbData.symbol, (ulong)DB_MagicNumber, DB_CloseUnprofitableOnNewSignal))
          {
             double sl = currentPrice + DB_StopLoss * dbData.point;
             double tp = currentPrice - DB_TakeProfit * dbData.point;

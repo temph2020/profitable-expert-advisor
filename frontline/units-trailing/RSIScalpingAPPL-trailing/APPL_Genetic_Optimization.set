@@ -1,0 +1,19 @@
+; saved on 2026.06.01 18:41:20
+; this file contains input parameters for testing/optimizing RSIScalping expert advisor
+; to use it in the strategy tester, click Load in the context menu of the Inputs tab
+;
+TimeFrame=16385||5||5||16385||Y
+RSI_Period=8||1||7||21||Y
+RSI_Applied_Price=1||0||1||1||N
+RSI_Overbought=62||2.0||60.0||85.0||Y
+RSI_Oversold=32||2.0||15.0||40.0||Y
+RSI_Target_Buy=67||2.0||65.0||90.0||Y
+RSI_Target_Sell=2||2.0||10.0||35.0||Y
+BarsToWait=5||1||1||12||Y
+LotSize=25||5.0||5.0||100.0||N
+MagicNumber=12345||0||12345||12345||N
+Slippage=3||0||3||3||N
+; === Trailing stop ===
+UseTrailingStop=true||false||0||true||N
+TrailingStopDistancePoints=50||50||100.0||800.0||Y
+TrailingActivationPoints=39.0||5.0||0.500000||50.000000||Y

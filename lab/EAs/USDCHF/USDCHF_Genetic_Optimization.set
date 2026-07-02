@@ -1,0 +1,48 @@
+; USDCHF Playbook — genetic optimization ranges (M15)
+; Format: Name=Default||Min||Step||Max||Y/N
+; Load: Strategy Tester → Inputs → Load → Optimization → Genetic
+
+; === fixed ===
+Timeframe=16388||16388||0||16388||N
+HtfTimeframe=16396||16396||0||16396||N
+DailyTimeframe=16408||16408||0||16408||N
+MagicNumber=20260625||20260625||1||20260625||N
+LotSize=0.10||0.10||0||0.10||N
+AtrPeriod=14||14||1||14||N
+ExtendHoldMomentum=true||true||0||true||N
+CompressLookback=48||48||1||48||N
+
+; === daily bias (rule 6) ===
+UseDailyBias=true||false||0||true||Y
+DailyEmaPeriod=50||34||8||100||Y
+
+; === HTF zones (rule 3) ===
+HtfZoneBars=20||12||4||28||Y
+MinBreakBodyRatio=0.55||0.45||0.05||0.70||Y
+
+; === double trap (rule 2) ===
+UseDoubleTrap=true||false||0||true||Y
+
+; === session (rules 1 & 4) ===
+NyChaosStartHour=12||11||1||14||Y
+NyChaosEndHour=15||14||1||17||Y
+MomentumStartHour=15||14||1||17||Y
+MomentumEndHour=2||1||1||4||Y
+
+; === LTF entry ===
+LtfFastEma=8||5||1||12||Y
+LtfSlowEma=21||18||3||34||Y
+EntryMode=1||0||1||2||Y
+
+; === risk / swing ===
+AtrSlMult=1.8||1.4||0.2||2.6||Y
+AtrTpMult=4.0||3.0||0.5||6.5||Y
+UseTrailing=true||false||0||true||Y
+TrailAtrMult=1.2||0.8||0.2||1.8||Y
+MaxBarsInTrade=96||64||16||128||Y
+CooldownBars=4||2||1||8||Y
+MaxSpreadPips=8||6||1||10||Y
+
+; === news compression (rule 5) ===
+UseCompressionFilter=true||false||0||true||Y
+CompressAtrRatio=0.70||0.55||0.05||0.85||Y

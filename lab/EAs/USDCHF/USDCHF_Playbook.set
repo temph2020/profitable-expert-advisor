@@ -1,0 +1,25 @@
+; USDCHF Playbook optimized
+Timeframe=15
+UseDailyBias=true
+DailyEmaPeriod=50
+HtfZoneBars=16
+MinBreakBodyRatio=0.51
+UseDoubleTrap=false
+NyChaosStartHour=13
+NyChaosEndHour=14
+MomentumStartHour=15
+MomentumEndHour=2
+LtfFastEma=8
+LtfSlowEma=21
+EntryMode=1
+AtrPeriod=14
+AtrSlMult=2.14
+AtrTpMult=3.6
+UseTrailing=true
+TrailAtrMult=1.2
+MaxBarsInTrade=96
+ExtendHoldMomentum=true
+CooldownBars=4
+UseCompressionFilter=true
+CompressAtrRatio=0.7
+LotSize=0.1
